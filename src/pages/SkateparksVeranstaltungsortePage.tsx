@@ -173,7 +173,7 @@ export default function SkateparksVeranstaltungsortePage() {
           </TableHeader>
           <TableBody>
             {sortRecords(filtered).map(record => (
-              <TableRow key={record.record_id} className="hover:bg-muted/50 transition-colors cursor-pointer" onClick={(e) => { if ((e.target as HTMLElement).closest('button, [role="checkbox"]')) return; navigate(`/skateparks-&-veranstaltungsorte/${record.record_id}`); }}>
+              <TableRow key={record.record_id} className="hover:bg-muted/50 transition-colors cursor-pointer" onClick={(e) => { if ((e.target as HTMLElement).closest('button, [role="checkbox"]')) return; navigate(`/skateparks-veranstaltungsorte/${record.record_id}`); }}>
                 <TableCell className="font-medium">{record.fields.location_name ?? '—'}</TableCell>
                 <TableCell>{record.fields.street ?? '—'}</TableCell>
                 <TableCell>{record.fields.house_number ?? '—'}</TableCell>

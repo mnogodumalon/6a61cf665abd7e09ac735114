@@ -140,6 +140,12 @@ export default function TeilnehmerAnmeldungPage() {
         <Table className="[&_tbody_td]:px-6 [&_tbody_td]:py-2 [&_tbody_td]:text-base [&_tbody_td]:font-medium [&_tbody_tr:first-child_td]:pt-6 [&_tbody_tr:last-child_td]:pb-10">
           <TableHeader className="bg-secondary">
             <TableRow className="border-b border-input">
+              <TableHead className="uppercase text-xs font-semibold text-secondary-foreground tracking-wider px-6 cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => toggleSort('emergency_contact_email')}>
+                <span className="inline-flex items-center gap-1">
+                  E-Mail-Adresse des Notfallkontakts
+                  {sortKey === 'emergency_contact_email' ? (sortDir === 'asc' ? <IconArrowUp size={14} /> : <IconArrowDown size={14} />) : <IconArrowsUpDown size={14} className="opacity-30" />}
+                </span>
+              </TableHead>
               <TableHead className="uppercase text-xs font-semibold text-secondary-foreground tracking-wider px-6 cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => toggleSort('event')}>
                 <span className="inline-flex items-center gap-1">
                   Event
@@ -212,8 +218,9 @@ export default function TeilnehmerAnmeldungPage() {
           <TableBody>
             {sortRecords(filtered).map(record => (
               <TableRow key={record.record_id} className="hover:bg-muted/50 transition-colors cursor-pointer" onClick={(e) => { if ((e.target as HTMLElement).closest('button, [role="checkbox"]')) return; navigate(`/teilnehmer-anmeldung/${record.record_id}`); }}>
+                <TableCell className="font-medium">{record.fields.emergency_contact_email ?? '—'}</TableCell>
                 <TableCell><span className="inline-flex items-center bg-secondary border border-[#bfdbfe] text-[#2563eb] rounded-[10px] px-2 py-1 text-sm font-medium">{getEventVerwaltungDisplayName(record.fields.event)}</span></TableCell>
-                <TableCell className="font-medium">{record.fields.participant_firstname ?? '—'}</TableCell>
+                <TableCell>{record.fields.participant_firstname ?? '—'}</TableCell>
                 <TableCell>{record.fields.participant_lastname ?? '—'}</TableCell>
                 <TableCell>{record.fields.participant_email ?? '—'}</TableCell>
                 <TableCell>{record.fields.participant_phone ?? '—'}</TableCell>
@@ -237,7 +244,7 @@ export default function TeilnehmerAnmeldungPage() {
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={12} className="text-center py-16 text-muted-foreground">
+                <TableCell colSpan={13} className="text-center py-16 text-muted-foreground">
                   {search ? 'Keine Ergebnisse gefunden.' : 'Noch keine Teilnehmer-Anmeldung. Jetzt hinzufügen!'}
                 </TableCell>
               </TableRow>

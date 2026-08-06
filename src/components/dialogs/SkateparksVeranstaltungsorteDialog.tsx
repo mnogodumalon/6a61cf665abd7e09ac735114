@@ -1,3 +1,17 @@
+/**
+ * SkateparksVeranstaltungsorteDialog — pre-generated create/edit dialog for SkateparksVeranstaltungsorte.
+ *
+ * Props: open, onClose, onSubmit(fields) => Promise<void>, defaultValues?,
+ * recordId? (pass when EDITING — enables the attachments section),
+ * enablePhotoScan?, enablePhotoLocation?.
+ *
+ * defaultValues is SHAPE-TOLERANT and its prop type is the EXPORTED
+ * SkateparksVeranstaltungsorteDialogDefaults — NOT the entity field type: lookup fields accept
+ * the bare KEY string (or LookupValue), applookup fields the bare record id
+ * (or record URL); the dialog normalizes. Type prefill STATE with the export:
+ *  ❌ useState<Partial<SkateparksVeranstaltungsorte['fields']>>({ … })   // LookupValue fields reject string prefills (TS2322)
+ *  ✓ useState<SkateparksVeranstaltungsorteDialogDefaults | undefined>(undefined)
+ */
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { SkateparksVeranstaltungsorte } from '@/types/app';
 import { APP_IDS } from '@/types/app';
@@ -18,6 +32,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { IconAlertCircle, IconCamera, IconChevronDown, IconCircleCheck, IconClipboard, IconFileText, IconLoader2, IconPhotoPlus, IconSparkles, IconUpload, IconX } from '@tabler/icons-react';
 import { fileToDataUri, extractFromInput, extractPhotoMeta, reverseGeocode, dataUriToBlob } from '@/lib/ai';
 
+/** Widened prefill type for SkateparksVeranstaltungsorteDialog.defaultValues — see file header. */
+export type SkateparksVeranstaltungsorteDialogDefaults = SkateparksVeranstaltungsorte['fields'];
+
 interface SkateparksVeranstaltungsorteDialogProps {
   open: boolean;
   onClose: () => void;
@@ -25,7 +42,7 @@ interface SkateparksVeranstaltungsorteDialogProps {
   /** SHAPE-TOLERANT: lookup fields accept the bare key (string) or the
    *  LookupValue object; applookup fields the bare record id or the full
    *  record URL — the dialog normalizes both. */
-  defaultValues?: SkateparksVeranstaltungsorte['fields'];
+  defaultValues?: SkateparksVeranstaltungsorteDialogDefaults;
   /** Record id when editing — enables the attachments section. Omit on create. */
   recordId?: string;
   enablePhotoScan?: boolean;
@@ -155,7 +172,7 @@ export function SkateparksVeranstaltungsorteDialog({ open, onClose, onSubmit, de
           (merged as Record<string, unknown>)[key] = val;
         }
       }
-      const clean = cleanFieldsForApi(merged, 'skateparks_&_veranstaltungsorte');
+      const clean = cleanFieldsForApi(merged, 'skateparks_veranstaltungsorte');
       await onSubmit(clean as SkateparksVeranstaltungsorte['fields']);
       onClose();
     } catch (err) {
@@ -276,7 +293,7 @@ export function SkateparksVeranstaltungsorteDialog({ open, onClose, onSubmit, de
         <Label htmlFor="location_name">Name des Veranstaltungsorts <span className="text-destructive" aria-hidden="true">*</span></Label>
         <Input
           id="location_name"
-          placeholder="z. B. Skatepark Nord"
+          placeholder=""
           value={fields.location_name ?? ''}
           onChange={e => setFields(f => ({ ...f, location_name: e.target.value }))}
           required
@@ -291,7 +308,7 @@ export function SkateparksVeranstaltungsorteDialog({ open, onClose, onSubmit, de
         <Label htmlFor="street">Straße <span className="text-destructive" aria-hidden="true">*</span></Label>
         <Input
           id="street"
-          placeholder="z. B. Hauptstraße"
+          placeholder=""
           value={fields.street ?? ''}
           onChange={e => setFields(f => ({ ...f, street: e.target.value }))}
           required
@@ -306,7 +323,7 @@ export function SkateparksVeranstaltungsorteDialog({ open, onClose, onSubmit, de
         <Label htmlFor="house_number">Hausnummer <span className="text-destructive" aria-hidden="true">*</span></Label>
         <Input
           id="house_number"
-          placeholder="z. B. 42"
+          placeholder=""
           value={fields.house_number ?? ''}
           onChange={e => setFields(f => ({ ...f, house_number: e.target.value }))}
           required
@@ -321,7 +338,7 @@ export function SkateparksVeranstaltungsorteDialog({ open, onClose, onSubmit, de
         <Label htmlFor="postal_code">Postleitzahl <span className="text-destructive" aria-hidden="true">*</span></Label>
         <Input
           id="postal_code"
-          placeholder="z. B. 10115"
+          placeholder=""
           value={fields.postal_code ?? ''}
           onChange={e => setFields(f => ({ ...f, postal_code: e.target.value }))}
           required
@@ -336,7 +353,7 @@ export function SkateparksVeranstaltungsorteDialog({ open, onClose, onSubmit, de
         <Label htmlFor="city">Stadt <span className="text-destructive" aria-hidden="true">*</span></Label>
         <Input
           id="city"
-          placeholder="z. B. Berlin"
+          placeholder=""
           value={fields.city ?? ''}
           onChange={e => setFields(f => ({ ...f, city: e.target.value }))}
           required
@@ -351,7 +368,7 @@ export function SkateparksVeranstaltungsorteDialog({ open, onClose, onSubmit, de
         <Label htmlFor="description">Beschreibung</Label>
         <Textarea
           id="description"
-          placeholder="Ausstattung, Besonderheiten, Größe..."
+          placeholder=""
           value={fields.description ?? ''}
           onChange={e => setFields(f => ({ ...f, description: e.target.value }))}
           rows={3}
@@ -363,7 +380,7 @@ export function SkateparksVeranstaltungsorteDialog({ open, onClose, onSubmit, de
         <Label htmlFor="special_notes">Besondere Hinweise</Label>
         <Textarea
           id="special_notes"
-          placeholder="Eintritt, Öffnungszeiten, Besonderheiten..."
+          placeholder=""
           value={fields.special_notes ?? ''}
           onChange={e => setFields(f => ({ ...f, special_notes: e.target.value }))}
           rows={3}

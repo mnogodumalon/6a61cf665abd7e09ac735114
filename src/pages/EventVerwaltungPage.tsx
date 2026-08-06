@@ -218,6 +218,12 @@ export default function EventVerwaltungPage() {
                   {sortKey === 'event_flyer' ? (sortDir === 'asc' ? <IconArrowUp size={14} /> : <IconArrowDown size={14} />) : <IconArrowsUpDown size={14} className="opacity-30" />}
                 </span>
               </TableHead>
+              <TableHead className="uppercase text-xs font-semibold text-secondary-foreground tracking-wider px-6 cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => toggleSort('organizer_notes')}>
+                <span className="inline-flex items-center gap-1">
+                  Notizen
+                  {sortKey === 'organizer_notes' ? (sortDir === 'asc' ? <IconArrowUp size={14} /> : <IconArrowDown size={14} />) : <IconArrowsUpDown size={14} className="opacity-30" />}
+                </span>
+              </TableHead>
               <TableHead className="w-24 uppercase text-xs font-semibold text-secondary-foreground tracking-wider px-6">Aktionen</TableHead>
             </TableRow>
           </TableHeader>
@@ -237,6 +243,7 @@ export default function EventVerwaltungPage() {
                 <TableCell>{record.fields.organizer_email ?? '—'}</TableCell>
                 <TableCell>{record.fields.organizer_phone ?? '—'}</TableCell>
                 <TableCell>{record.fields.event_flyer ? <div className="relative h-8 w-8 rounded bg-muted overflow-hidden"><div className="absolute inset-0 flex items-center justify-center"><IconFileText size={14} className="text-muted-foreground" /></div><img src={record.fields.event_flyer} alt="" className="relative h-full w-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} /></div> : '—'}</TableCell>
+                <TableCell className="max-w-xs"><span className="truncate block">{record.fields.organizer_notes ?? '—'}</span></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" onClick={() => setEditingRecord(record)}>
@@ -251,7 +258,7 @@ export default function EventVerwaltungPage() {
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={14} className="text-center py-16 text-muted-foreground">
+                <TableCell colSpan={15} className="text-center py-16 text-muted-foreground">
                   {search ? 'Keine Ergebnisse gefunden.' : 'Noch keine Event-Verwaltung. Jetzt hinzufügen!'}
                 </TableCell>
               </TableRow>

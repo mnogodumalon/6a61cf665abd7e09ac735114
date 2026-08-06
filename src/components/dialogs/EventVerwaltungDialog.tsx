@@ -1,3 +1,18 @@
+/**
+ * EventVerwaltungDialog — pre-generated create/edit dialog for EventVerwaltung.
+ *
+ * Props: open, onClose, onSubmit(fields) => Promise<void>, defaultValues?,
+ * recordId? (pass when EDITING — enables the attachments section),
+ * skateparksVeranstaltungsorteList (full hook array — resolves the SkateparksVeranstaltungsorte applookup),
+ * enablePhotoScan?, enablePhotoLocation?.
+ *
+ * defaultValues is SHAPE-TOLERANT and its prop type is the EXPORTED
+ * EventVerwaltungDialogDefaults — NOT the entity field type: lookup fields accept
+ * the bare KEY string (or LookupValue), applookup fields the bare record id
+ * (or record URL); the dialog normalizes. Type prefill STATE with the export:
+ *  ❌ useState<Partial<EventVerwaltung['fields']>>({ … })   // LookupValue fields reject string prefills (TS2322)
+ *  ✓ useState<EventVerwaltungDialogDefaults | undefined>(undefined)
+ */
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { EventVerwaltung, SkateparksVeranstaltungsorte, LookupValue } from '@/types/app';
 import { APP_IDS, LOOKUP_OPTIONS } from '@/types/app';
@@ -22,6 +37,12 @@ import { IconAlertCircle, IconCamera, IconChevronDown, IconCircleCheck, IconClip
 import { fileToDataUri, extractFromInput, extractPhotoMeta, reverseGeocode, dataUriToBlob } from '@/lib/ai';
 import { lookupKey } from '@/lib/formatters';
 
+/** Widened prefill type for EventVerwaltungDialog.defaultValues — see file header. */
+export type EventVerwaltungDialogDefaults = Omit<EventVerwaltung['fields'], 'event_category' | 'skill_level'> & {
+    event_category?: LookupValue | string;
+    skill_level?: LookupValue | string;
+  };
+
 interface EventVerwaltungDialogProps {
   open: boolean;
   onClose: () => void;
@@ -29,10 +50,7 @@ interface EventVerwaltungDialogProps {
   /** SHAPE-TOLERANT: lookup fields accept the bare key (string) or the
    *  LookupValue object; applookup fields the bare record id or the full
    *  record URL — the dialog normalizes both. */
-  defaultValues?: Omit<EventVerwaltung['fields'], 'event_category' | 'skill_level'> & {
-    event_category?: LookupValue | string;
-    skill_level?: LookupValue | string;
-  };
+  defaultValues?: EventVerwaltungDialogDefaults;
   /** Record id when editing — enables the attachments section. Omit on create. */
   recordId?: string;
   skateparksVeranstaltungsorteList: SkateparksVeranstaltungsorte[];
@@ -256,7 +274,7 @@ export function EventVerwaltungDialog({ open, onClose, onSubmit, defaultValues, 
         }
       }
       const photoContext = contextParts.length ? contextParts.join('\n') : undefined;
-      const schema = `{\n  "event_title": string | null, // Titel des Events\n  "event_description": string | null, // Beschreibung\n  "event_category": LookupValue | null, // Kategorie (select one key: "contest" | "jam_session" | "demo" | "workshop" | "sonstiges") mapping: contest=Contest, jam_session=Jam Session, demo=Demo, workshop=Workshop, sonstiges=Sonstiges\n  "event_datetime": string | null, // YYYY-MM-DDTHH:MM\n  "skill_level": LookupValue | null, // Schwierigkeitsgrad (select one key: "beginner" | "intermediate" | "advanced" | "all_levels") mapping: beginner=Anfänger, intermediate=Fortgeschrittene, advanced=Profis, all_levels=Alle Levels\n  "max_participants": number | null, // Maximale Teilnehmerzahl\n  "entry_fee": number | null, // Startgebühr (in €)\n  "location": string | null, // Display name from Skateparks & Veranstaltungsorte (see <available-records>)\n  "organizer_firstname": string | null, // Vorname des Organisators\n  "organizer_lastname": string | null, // Nachname des Organisators\n  "organizer_email": string | null, // E-Mail des Organisators\n  "organizer_phone": string | null, // Telefonnummer des Organisators\n}`;
+      const schema = `{\n  "event_title": string | null, // Titel des Events\n  "event_description": string | null, // Beschreibung\n  "event_category": LookupValue | null, // Kategorie (select one key: "jam_session" | "demo" | "workshop" | "sonstiges" | "contest") mapping: jam_session=Jam Session, demo=Demo, workshop=Workshop, sonstiges=Sonstiges, contest=Contest\n  "event_datetime": string | null, // YYYY-MM-DDTHH:MM\n  "skill_level": LookupValue | null, // Schwierigkeitsgrad (select one key: "beginner" | "intermediate" | "advanced" | "all_levels") mapping: beginner=Anfänger, intermediate=Fortgeschrittene, advanced=Profis, all_levels=Alle Levels\n  "max_participants": number | null, // Maximale Teilnehmerzahl\n  "entry_fee": number | null, // Startgebühr (in €)\n  "location": string | null, // Display name from Skateparks & Veranstaltungsorte (see <available-records>)\n  "organizer_firstname": string | null, // Vorname des Organisators\n  "organizer_lastname": string | null, // Nachname des Organisators\n  "organizer_email": string | null, // E-Mail des Organisators\n  "organizer_phone": string | null, // Telefonnummer des Organisators\n  "organizer_notes": string | null, // Notizen\n}`;
       const raw = await extractFromInput<Record<string, unknown>>(schema, {
         dataUri: uri,
         userText: aiText.trim() || undefined,
@@ -338,7 +356,7 @@ export function EventVerwaltungDialog({ open, onClose, onSubmit, defaultValues, 
         <Label htmlFor="event_title">Titel des Events <span className="text-destructive" aria-hidden="true">*</span></Label>
         <Input
           id="event_title"
-          placeholder="z. B. Urban Skate Cup 2026"
+          placeholder=""
           value={fields.event_title ?? ''}
           onChange={e => setFields(f => ({ ...f, event_title: e.target.value }))}
           required
@@ -353,7 +371,7 @@ export function EventVerwaltungDialog({ open, onClose, onSubmit, defaultValues, 
         <Label htmlFor="event_description">Beschreibung</Label>
         <Textarea
           id="event_description"
-          placeholder="Regeln, Format, Preisgeld..."
+          placeholder=""
           value={fields.event_description ?? ''}
           onChange={e => setFields(f => ({ ...f, event_description: e.target.value }))}
           rows={3}
@@ -364,19 +382,6 @@ export function EventVerwaltungDialog({ open, onClose, onSubmit, defaultValues, 
       <div key="event_category" className="space-y-1.5">
         <Label htmlFor="event_category">Kategorie <span className="text-destructive" aria-hidden="true">*</span></Label>
         <div role="radiogroup" className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={lookupKey(fields.event_category) === 'contest'}
-            onClick={() => setFields(f => ({ ...f, event_category: (lookupKey(f.event_category) === 'contest' ? undefined : 'contest') as any }))}
-            className={`inline-flex items-center justify-center min-h-9 max-sm:min-h-11 max-sm:px-4 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
-              lookupKey(fields.event_category) === 'contest'
-                ? 'bg-foreground text-background border-foreground'
-                : 'bg-background text-foreground border-input hover:bg-accent'
-            }`}
-          >
-            Contest
-          </button>
           <button
             type="button"
             role="radio"
@@ -429,6 +434,19 @@ export function EventVerwaltungDialog({ open, onClose, onSubmit, defaultValues, 
           >
             Sonstiges
           </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={lookupKey(fields.event_category) === 'contest'}
+            onClick={() => setFields(f => ({ ...f, event_category: (lookupKey(f.event_category) === 'contest' ? undefined : 'contest') as any }))}
+            className={`inline-flex items-center justify-center min-h-9 max-sm:min-h-11 max-sm:px-4 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+              lookupKey(fields.event_category) === 'contest'
+                ? 'bg-foreground text-background border-foreground'
+                : 'bg-background text-foreground border-input hover:bg-accent'
+            }`}
+          >
+            Contest
+          </button>
         </div>
         {showErrors && !fields.event_category && (
           <p className="text-xs text-destructive mt-1">Pflichtfeld</p>
@@ -440,7 +458,7 @@ export function EventVerwaltungDialog({ open, onClose, onSubmit, defaultValues, 
         <Label htmlFor="event_datetime">Datum und Uhrzeit <span className="text-destructive" aria-hidden="true">*</span></Label>
         <DatePicker
           id="event_datetime"
-          placeholder="Wann findet es statt?"
+          placeholder=""
           mode="datetime"
           value={fields.event_datetime ?? null}
           onChange={v => setFields(f => ({ ...f, event_datetime: v ?? undefined }))}
@@ -521,7 +539,7 @@ export function EventVerwaltungDialog({ open, onClose, onSubmit, defaultValues, 
           type="number"
           step="any"
           {...numberInputProps(formEnhancements, 'max_participants')}
-          placeholder="z. B. 50"
+          placeholder=""
           value={fields.max_participants !== undefined ? fields.max_participants : (computedValues['max_participants'] ?? '')}
           onChange={e => setFields(f => ({ ...f, max_participants: clampNumberValue(formEnhancements, 'max_participants', e.target.value) }))}
         />
@@ -535,7 +553,7 @@ export function EventVerwaltungDialog({ open, onClose, onSubmit, defaultValues, 
           type="number"
           step="any"
           {...numberInputProps(formEnhancements, 'entry_fee')}
-          placeholder="z. B. 25,00"
+          placeholder=""
           value={fields.entry_fee !== undefined ? fields.entry_fee : (computedValues['entry_fee'] ?? '')}
           onChange={e => setFields(f => ({ ...f, entry_fee: clampNumberValue(formEnhancements, 'entry_fee', e.target.value) }))}
         />
@@ -546,7 +564,7 @@ export function EventVerwaltungDialog({ open, onClose, onSubmit, defaultValues, 
         <Label htmlFor="location">Veranstaltungsort <span className="text-destructive" aria-hidden="true">*</span></Label>
         <Combobox
           id="location"
-          placeholder="Welcher Skatepark?"
+          placeholder=""
           items={skateparksVeranstaltungsorteListAll.map(r => ({
             id: r.record_id,
             label: String(r.fields.location_name ?? r.record_id),
@@ -568,7 +586,7 @@ export function EventVerwaltungDialog({ open, onClose, onSubmit, defaultValues, 
         <Label htmlFor="organizer_firstname">Vorname des Organisators <span className="text-destructive" aria-hidden="true">*</span></Label>
         <Input
           id="organizer_firstname"
-          placeholder="z. B. Max"
+          placeholder=""
           value={fields.organizer_firstname ?? ''}
           onChange={e => setFields(f => ({ ...f, organizer_firstname: e.target.value }))}
           required
@@ -583,7 +601,7 @@ export function EventVerwaltungDialog({ open, onClose, onSubmit, defaultValues, 
         <Label htmlFor="organizer_lastname">Nachname des Organisators <span className="text-destructive" aria-hidden="true">*</span></Label>
         <Input
           id="organizer_lastname"
-          placeholder="z. B. Müller"
+          placeholder=""
           value={fields.organizer_lastname ?? ''}
           onChange={e => setFields(f => ({ ...f, organizer_lastname: e.target.value }))}
           required
@@ -599,7 +617,7 @@ export function EventVerwaltungDialog({ open, onClose, onSubmit, defaultValues, 
         <Input
           id="organizer_email"
           type="email"
-          placeholder="max.mueller@example.com"
+          placeholder=""
           value={fields.organizer_email ?? ''}
           onChange={e => setFields(f => ({ ...f, organizer_email: e.target.value }))}
         />
@@ -688,6 +706,18 @@ export function EventVerwaltungDialog({ open, onClose, onSubmit, defaultValues, 
         )}
       </div>
     ),
+    'organizer_notes': (
+      <div key="organizer_notes" className="space-y-1.5">
+        <Label htmlFor="organizer_notes">Notizen</Label>
+        <Textarea
+          id="organizer_notes"
+          placeholder=""
+          value={fields.organizer_notes ?? ''}
+          onChange={e => setFields(f => ({ ...f, organizer_notes: e.target.value }))}
+          rows={3}
+        />
+      </div>
+    ),
   };
   const orderedFields = applyFieldOrder(Object.keys(fieldBlocks), formEnhancements.fieldOrder);
   const orderedFieldsKey = orderedFields.map((it) => typeof it === 'string' ? it : it.row.join('+')).join(',');
@@ -702,7 +732,7 @@ export function EventVerwaltungDialog({ open, onClose, onSubmit, defaultValues, 
   //     kein passendes Backend-Feld in orderedFields) erscheinen NICHT als
   //     Input, sondern unten als kompakte 'Berechnungen'-Übersicht oder als
   //     Inline-Hint unter dem letzten beitragenden Input.
-  const FIELD_LABELS: Record<string, string> = {"event_title": "Titel des Events", "event_description": "Beschreibung", "event_category": "Kategorie", "event_datetime": "Datum und Uhrzeit", "skill_level": "Schwierigkeitsgrad", "max_participants": "Maximale Teilnehmerzahl", "entry_fee": "Startgebühr (in €)", "location": "Veranstaltungsort", "organizer_firstname": "Vorname des Organisators", "organizer_lastname": "Nachname des Organisators", "organizer_email": "E-Mail des Organisators", "organizer_phone": "Telefonnummer des Organisators", "event_flyer": "Event-Flyer"};
+  const FIELD_LABELS: Record<string, string> = {"event_title": "Titel des Events", "event_description": "Beschreibung", "event_category": "Kategorie", "event_datetime": "Datum und Uhrzeit", "skill_level": "Schwierigkeitsgrad", "max_participants": "Maximale Teilnehmerzahl", "entry_fee": "Startgebühr (in €)", "location": "Veranstaltungsort", "organizer_firstname": "Vorname des Organisators", "organizer_lastname": "Nachname des Organisators", "organizer_email": "E-Mail des Organisators", "organizer_phone": "Telefonnummer des Organisators", "event_flyer": "Event-Flyer", "organizer_notes": "Notizen"};
   const CURRENCY_KEYS = new Set<string>(["entry_fee"]);
   // Applookup-Referenz-Labels: pro applookup-Feld in dieser Form (ownKey)
   // eine Map { lookupKey: label } für ALLE Felder des Target-Schemas. Wird

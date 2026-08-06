@@ -1,11 +1,19 @@
 import asyncio
+import dataclasses
 import json
+import re
 import time
-from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AgentDefinition, AssistantMessage, UserMessage, ToolUseBlock, ToolResultBlock, TextBlock, ResultMessage, HookMatcher
+from contextlib import aclosing
+from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AgentDefinition, AssistantMessage, UserMessage, ToolUseBlock, ToolResultBlock, TextBlock, ResultMessage, HookMatcher, create_sdk_mcp_server, tool
+from claude_agent_sdk import query as sdk_query
 import os
 
 _t0 = time.time()
 _LOG_LEVEL = os.getenv("LOG_LEVEL", "warn").lower()
+
+# One source of truth — the orchestrator and the intent-page sessions it fans
+# out to must run the same model.
+AGENT_MODEL = "claude-sonnet-4-6"
 
 def _actor_fields(parent_tool_use_id: str | None) -> dict:
     """Build actor/parent_id pair used to distinguish main-agent from sub-agent frames."""
@@ -66,6 +74,104 @@ async def _block_subagent_files_for_main_agent(input_data: dict, tool_use_id: st
         }
     }
 
+# Commands the orchestrator must NOT run while Phase 1 shares the tree:
+# `npm run build`/`tsc` collide with Phase 1's build (one tsbuildinfo, one
+# dist/), wire-intent edits App.tsx mid-`git add`, and the gates read a tree
+# that is still being written. All of it belongs to the integration step.
+_TREE_TOUCHING_RE = re.compile(
+    r"npm\s+run\s+build|wire-intent\.mjs|check-[\w-]+\.mjs|\btsc\b|vite\s+build"
+)
+
+
+async def _deny_tree_commands_in_pages_mode(input_data: dict, tool_use_id: str | None = None, context: dict | None = None) -> dict:
+    """intents-pages mode: pages go to staging, everything tree-global is the
+    integration step's job. A prose rule already says so — this hook is the
+    mechanical version, same lesson as the fan-out: response content is the
+    model's to choose, tool execution is not."""
+    if not _staging_mode():
+        return {}
+    if input_data.get("tool_name") != "Bash":
+        return {}
+    command = str((input_data.get("tool_input") or {}).get("command", ""))
+    if not _TREE_TOUCHING_RE.search(command):
+        return {}
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": (
+                "Not in this phase: the dashboard build runs concurrently in this tree. "
+                "Wiring, gates and `npm run build` happen in the integration step after "
+                "build_intent_pages returns — your job ends there. STOP instead."
+            ),
+        }
+    }
+
+
+# The flow surface, which is never Phase 1's to touch — in the sequential
+# mode Phase 2 owns it, in the parallel mode the pages track + integration
+# band do. A live parallel run proved the prose was not enough: Phase 1 got
+# the user instructions ("implement PLUS what the user asked"), rebuilt both
+# flows itself (~200s), filled the custom markers, and the integration band
+# then collided on the duplicate identifiers (TS2440 → 71s repair) and left
+# duplicate sidebar entries.
+_INTENT_SURFACE_RE = re.compile(
+    r"src/pages/intents/|src/config/intents\.ts"
+)
+
+
+async def _deny_intent_surface_in_dashboard_mode(input_data: dict, tool_use_id: str | None = None, context: dict | None = None) -> dict:
+    """Phase 1 must not write flow pages or the intents registry."""
+    if os.getenv("BUILD_PHASE") != "dashboard":
+        return {}
+    tool_name = input_data.get("tool_name", "")
+    tool_input = input_data.get("tool_input", {}) or {}
+    if tool_name in ("Write", "Edit", "MultiEdit"):
+        target = str(tool_input.get("file_path", ""))
+        if not _INTENT_SURFACE_RE.search(target):
+            return {}
+    elif tool_name == "Bash":
+        if "wire-intent.mjs" not in str(tool_input.get("command", "")):
+            return {}
+    else:
+        return {}
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": (
+                "Flow pages, src/config/intents.ts and wire-intent belong to the "
+                "intents phase, which builds any flow wishes from the user "
+                "instructions in parallel. Build ONLY the dashboard — skip flow/"
+                "tool wishes, they are covered."
+            ),
+        }
+    }
+
+
+async def _deny_serial_intent_dispatch(input_data: dict, tool_use_id: str | None = None, context: dict | None = None) -> dict:
+    """Close the serial path: `intent_builder` is not dispatchable any more.
+
+    Matched on every tool rather than on a tool name, because the subagent-
+    dispatch tool has been called both `Task` and `Agent` across CLI versions —
+    the discriminator that actually holds is the `subagent_type` argument.
+    """
+    tool_input = input_data.get("tool_input", {}) or {}
+    if tool_input.get("subagent_type") != "intent_builder":
+        return {}
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": (
+                "'intent_builder' is not a subagent any more — dispatching per flow made the "
+                "build cost the SUM of all pages. Call the tool build_intent_pages ONCE with "
+                "every flow in its `flows` array instead; they run concurrently."
+            ),
+        }
+    }
+
+
 # Environment-specific configuration
 LA_API_URL = os.getenv("LA_API_URL", "https://my.living-apps.de/rest")
 LA_FRONTEND_URL = os.getenv("LA_FRONTEND_URL", "https://my.living-apps.de")
@@ -108,32 +214,41 @@ Use useState to manage wizard steps, selections, and running totals.
 
 RECORD CREATION & SELECTION — THIS IS THE #1 RULE:
 
-🚨 NEVER build custom inline forms for creating records. NEVER. Not even "simple" ones.
-The pre-generated {Entity}Dialog handles ALL field types, validation, photo scan, applookup fields, \
-and lookup enrichment correctly. A custom inline form will be WRONG.
+🚨 NEVER use the pre-generated {Entity}Dialog inside an intent UI — not as a step, not behind \
+"Neu erstellen". It is the generic CRUD modal (every field, photo scan) and defeats the wizard: \
+the user came here to be guided, not to face the full form. Build a task-tailored mini-form \
+instead — only the 2–4 fields that matter for this step's decision — and call \
+LivingAppsService.create<X>Entry() directly with correctly formatted values (see the API rules \
+below; scripts/check-lookup-keys.mjs catches invented lookup keys before the build).
 
 For EVERY step where the user needs to pick or add a record:
 
 1. SHOW EXISTING RECORDS FIRST — fetch from useDashboardData(), display as a searchable list \
 (use EntitySelectStep or a custom card list). The user picks from what already exists.
 
-2. OFFER "Neu erstellen" BUTTON — a Button below or beside the list that opens {Entity}Dialog. \
-After the dialog closes successfully and fetchAll() refreshes, auto-select the newly created record.
+2. OFFER "Neu erstellen" — a button that reveals YOUR OWN mini-form (inline panel or a small \
+Dialog composed from ui/ primitives). After a successful create and fetchAll(), auto-select \
+the newly created record.
 
 3. CONCRETE EXAMPLE:
 ```tsx
-const [dialogOpen, setDialogOpen] = useState(false);
-// Show existing articles to select from
-<EntitySelectStep items={artikel.map(a => ({...}))} onSelect={handleSelect} />
-<Button variant="outline" onClick={() => setDialogOpen(true)}>
-  <IconPlus size={16} className="mr-2" /> Neuen Artikel anlegen
-</Button>
-<ArtikelDialog open={dialogOpen} onClose={() => setDialogOpen(false)}
-  onSubmit={async (fields) => { await LivingAppsService.createArtikelEntry(fields); await fetchAll(); }} />
+const [showCreate, setShowCreate] = useState(false);
+const [name, setName] = useState('');
+<EntitySelectStep items={artikel.map(a => ({...}))} onSelect={handleSelect}
+  createLabel="Neuen Artikel anlegen" onCreateNew={() => setShowCreate(true)} />
+{showCreate && (
+  <div className="rounded-2xl border p-4 space-y-3">  {/* mini-form: ONLY this step's fields */}
+    <Input value={name} onChange={e => setName(e.target.value)} placeholder="Artikelname" />
+    <Button onClick={async () => {
+      await LivingAppsService.createArtikelEntry({ name });
+      await fetchAll(); setShowCreate(false);          // then auto-select the new record
+    }}>Anlegen</Button>
+  </div>
+)}
 ```
 
-This applies to ALL entities in EVERY step: selecting a group, picking participants, choosing articles, etc. \
-Never replace the dialog with an inline form — not even for "quick add" scenarios.
+This applies to ALL entities in EVERY step. The full CRUD form stays on the CRUD page — \
+fields not relevant to this step can be filled there later.
 
 MANDATORY RULES:
 - BEFORE writing any code, Read src/types/app.ts to learn the EXACT field names for each entity type. \
@@ -142,19 +257,28 @@ Use ONLY these field names when calling LivingAppsService methods. NEVER invent 
 from '@/services/livingAppsService'. Do NOT build custom API calls or service functions.
 - Create the file with Write tool — one shot, no read-back.
 - The file must be a valid React component with a default export.
+- The file MUST START with a /** … */ docblock (above the imports): purpose in one line, \
+the ordered steps, which entities it reads and writes, which shared components it composes. \
+Follow-up agent sessions read this block to find and reuse the flow (e.g. to mirror it as a \
+public page) — a page without it is invisible to them. Example:
+  /**
+   * Neue Buchung — 3-Schritt-Wizard.
+   * Steps: 1) Kurs wählen → 2) Teilnehmer erfassen → 3) Bestätigen & anlegen.
+   * Reads: kurse, teilnehmer. Writes: buchungen (createBuchungenEntry).
+   * Composes: IntentWizardShell, EntitySelectStep.
+   */
 - Import useDashboardData from '@/hooks/useDashboardData' for data access.
 - Import types from '@/types/app', services from '@/services/livingAppsService'.
 - Import enrichment functions from '@/lib/enrich' and enriched types from '@/types/enriched' if needed.
 - NEVER use Bash for file operations — use Read/Write/Edit tools only.
 - Rules of Hooks: ALL hooks MUST be BEFORE any early returns (loading/error).
 - IMPORT HYGIENE: Only import what you use.
-- NEVER use the pre-generated {Entity}Dialog components inside the intent UI. \
-They are the generic CRUD modals (every field, photo-scan, etc.) and break the wizard flow. \
-Each step must have its own inline UI tailored to that step's task — show only the fields relevant \
-for the user's current decision, use the most ergonomic input method (date-range picker, tile-style \
-multi-select with prices, live total card, search-as-you-type). Call LivingAppsService.create<X>Entry() \
-directly on submit with correctly formatted fields. See .claude/skills/intent-ui/SKILL.md section \
-"NEVER use the pre-generated {Entity}Dialog inside an intent UI" for examples.
+- NO toISOString() ANYWHERE in the file — not even for local display state that never reaches \
+the API. The check-intents gate is file-wide and context-free. Use date-fns format() instead.
+- No {Entity}Dialog — see THE #1 RULE above. Each step owns a tailored inline UI with the most \
+ergonomic input method (date-range picker, tile-style multi-select with prices, live total card, \
+search-as-you-type). Full examples: .claude/skills/intent-ui/SKILL.md section \
+"NEVER use the pre-generated {Entity}Dialog inside an intent UI".
 - TOUCH-FRIENDLY: NEVER hide buttons behind hover.
 - MANDATORY FIRST STEP: Before writing any code, Read `.claude/skills/intent-ui/SKILL.md` \
 in full. It is the authoritative source for design patterns AND critical API write rules \
@@ -185,6 +309,8 @@ or send a single URL where a list is expected.
   ❌ extras: createRecordUrl(APP_IDS.X, oneId)   // singular URL when list expected
   ❌ extras: JSON.stringify(urls)
 Rule: if the form-state is a Set<id> or id[], map to URLs first, then pass the ARRAY directly.
+Scope: createRecordUrl builds the AUTHENTICATED /rest form. On public pages use
+recordRef(cfg, page, appId, recordId) from '@/lib/publicClient' instead — never createRecordUrl.
 """
 
 FORM_POLISH_PROMPT = """\
@@ -408,6 +534,18 @@ export const formEnhancements: FormEnhancements = {
     'gesamtpreis': 'applookup(zimmer, tagespreis) * dateDiff(anreise, abreise, days) + applookup(zusatzleistung, preis)',
     // MODUS 2: Inline-Funktion — NUR wenn Formel nicht reicht (Conditionals,
     // Schleifen, Multi-Lookup-Summen, Lookup-Switches). Pure Funktion mit ctx-API.
+    // NUR ZAHLEN: computed berechnet Beträge/Anzahlen/Dauern, NIE ein Datum und
+    // nie einen Text — ein String-Return ist TS2322. Datums-Vorbelegung gehört
+    // in defaults ({ kind: 'todayOffset', days: n }).
+    //   FALSCH: 'faelligkeitsdatum': (_f, ctx) => `${y}-${m}-${d}`
+    //   RICHTIG: defaults: { 'faelligkeitsdatum': { kind: 'todayOffset', days: 30 } }
+    // Eigene Formularfelder IMMER über ctx.num(key) lesen — liefert number
+    // (fehlend/leer → 0). ctx.field(key) ist der Rohwert für String-Vergleiche;
+    // damit zu rechnen bricht den Build.
+    //   FALSCH: const netto = ctx.field('preis') ?? 0; return netto * 0.19;
+    //   RICHTIG: return ctx.num('preis') * 0.19;
+    // ctx.num/ctx.field lesen NUR echte Felder, KEINE anderen computed-Keys
+    // (die liefern 0) — Zwischenwerte in der Funktion selbst berechnen.
     'gesamtpreis_mit_einheit': (fields, ctx) => {
       const basis  = (ctx.applookup('zimmer','tagespreis') ?? 0)
                    * (ctx.dateDiff('anreise','abreise') ?? 0);
@@ -465,21 +603,360 @@ Kurze Status-Antwort. Keine Re-Reads.
 
 SUBAGENT_TOOLS = ["Read", "Write", "Edit", "MultiEdit", "Bash", "Glob", "Grep"]
 
+# ── Mechanical parallel fan-out for the intent pages ───────────────
+#
+# Four separate prose rules ordered the orchestrator to put every
+# intent_builder call into ONE response, one of them shouting "CRITICAL" and
+# quoting the measured cost. A live run still dispatched flow 2 only after
+# flow 1's result had come back — 133s + 114s, where the 114s was entirely
+# free wall-clock. Prose cannot fix this: response boundaries are the model's
+# to choose, and it chose wrong while being told not to.
+#
+# So the fan-out stops being a model decision. ONE tool call takes ALL flows
+# and runs them under asyncio.gather; `intent_builder` is no longer a
+# dispatchable subagent (a PreToolUse hook denies it), which leaves no serial
+# path to take. The guarantee is now our own control flow, not a rule.
+
+# A flow that hangs must not take the build with it. Phase 1 pages take
+# ~100-160s; 10 minutes is generous enough that only a genuinely stuck
+# session hits it, and the others still return.
+_INTENT_FLOW_TIMEOUT_S = 600
+
+# Parameterized so tests can point the staging logic at a tmp dir — the real
+# paths only exist inside the E2B image.
+APP_ROOT = "/home/user/app"
+STAGING_DIRNAME = ".intents-staging"
+
+
+def _staging_mode() -> bool:
+    """In "intents-pages" mode the pages are QUARANTINED: Phase 1 runs
+    concurrently in the same tree and its `tsc -b` compiles everything under
+    src/ — a half-written page there fails the dashboard build
+    nondeterministically. Pages therefore land in .intents-staging/ (invisible
+    to tsc) plus a manifest; the integration step after the dashboard phase
+    moves, wires and builds them."""
+    return os.getenv("BUILD_PHASE") == "intents-pages"
+
+
+def _staging_dir() -> str:
+    return os.path.join(APP_ROOT, STAGING_DIRNAME)
+
+
+def _emit(payload: dict) -> None:
+    print(json.dumps(payload), flush=True)
+
+
+def _agent_options(**kwargs) -> ClaudeAgentOptions:
+    """ClaudeAgentOptions, minus any field this SDK build does not have.
+
+    The sandbox image and a local checkout do not necessarily install the same
+    SDK: `thinking` only exists from ~0.1.2x on, while `max_thinking_tokens` is
+    the older spelling. Passing an unknown field is a hard TypeError, so the
+    keys are filtered against the dataclass instead of assumed — otherwise the
+    fan-out is untestable anywhere but inside the image it ships in.
+    """
+    supported = {f.name for f in dataclasses.fields(ClaudeAgentOptions)}
+    return ClaudeAgentOptions(**{k: v for k, v in kwargs.items() if k in supported})
+
+
+async def _build_one_intent_page(flow: dict, index: int) -> dict:
+    """Run ONE intent-page session to completion. Never raises — a failure is
+    reported back to the orchestrator as data so the other flows still land."""
+    file_path = str(flow.get("file", "")).strip()
+    brief = str(flow.get("brief", "")).strip()
+    tag = file_path.rsplit("/", 1)[-1] or f"flow{index}"
+    started = time.time()
+
+    if not file_path or not brief:
+        return {"file": file_path, "ok": False, "seconds": 0.0,
+                "error": "flow entry needs both 'file' and 'brief'"}
+
+    staging = _staging_mode()
+    basename = file_path.rsplit("/", 1)[-1]
+    if staging:
+        # The brief and the skill talk about src/pages/intents/ — the page is
+        # location-independent (@/ alias imports), only the Write target moves.
+        write_target = f"{STAGING_DIRNAME}/{basename}"
+        prompt = (
+            f"Build the file `{write_target}`.\n\n"
+            f"NOTE: the file will be MOVED to `{file_path}` by a later "
+            f"integration step — write the code exactly as if it lived there "
+            f"(all imports are @/ aliases, nothing about the content changes). "
+            f"Write to `{write_target}`, NOT to src/pages/intents/.\n\n{brief}"
+        )
+    else:
+        write_target = file_path
+        prompt = f"Build the file `{file_path}`.\n\n{brief}"
+
+    _emit({"type": "tool", "tool": "IntentPage", "tool_use_id": f"intent:{tag}",
+           "input": f"build {file_path}", "t": round(started - _t0, 1),
+           "model": AGENT_MODEL, "actor": "main", "parent_id": None})
+
+    option_kwargs = dict(
+        # preset + append mirrors how the CLI composed the old AgentDefinition:
+        # base tool behaviour stays, INTENT_BUILDER_PROMPT rides on top.
+        system_prompt={"type": "preset", "preset": "claude_code",
+                       "append": INTENT_BUILDER_PROMPT},
+        allowed_tools=SUBAGENT_TOOLS,
+        # Same as the orchestrator session — the old subagents inherited this.
+        thinking={"type": "disabled"},
+        permission_mode="bypassPermissions",
+        cwd=APP_ROOT,
+        model=AGENT_MODEL,
+    )
+    if not staging:
+        # Loads CLAUDE.md into the session. Correct in the sequential mode
+        # (CLAUDE.md = orchestrator prompt), WRONG while Phase 1 runs
+        # concurrently — CLAUDE.md is then the dashboard-builder prompt
+        # ("Write DashboardOverview once", …) and would pollute every page
+        # session. The skill is unaffected either way: INTENT_BUILDER_PROMPT
+        # mandates an explicit Read of SKILL.md.
+        option_kwargs["setting_sources"] = ["project"]
+    options = _agent_options(**option_kwargs)
+
+    texts: list[str] = []
+    try:
+        # The SDK terminates the CLI subprocess in a `finally` inside its
+        # generator, so on timeout that generator must be closed, not abandoned.
+        # CPython's refcounting does close it promptly here (verified: removing
+        # aclosing does NOT fail the test below), so this is hardening, not a
+        # fix for an observed leak — it stops the cleanup from depending on
+        # refcount timing, which a traceback holding the frame alive, or a
+        # non-refcounting runtime, would break.
+        async with asyncio.timeout(_INTENT_FLOW_TIMEOUT_S), aclosing(
+            sdk_query(prompt=prompt, options=options)
+        ) as session:
+            async for message in session:
+                if not isinstance(message, AssistantMessage):
+                    continue
+                for block in message.content:
+                    if isinstance(block, ToolUseBlock):
+                        _emit({"type": "tool", "tool": block.name,
+                               "tool_use_id": block.id,
+                               "input": str(block.input)[:2000],
+                               "t": round(time.time() - _t0, 1),
+                               "model": AGENT_MODEL,
+                               "actor": "subagent", "parent_id": f"intent:{tag}"})
+                    elif isinstance(block, TextBlock):
+                        texts.append(block.text)
+    except TimeoutError:
+        return {"file": file_path, "ok": False,
+                "seconds": round(time.time() - started, 1),
+                "error": f"timed out after {_INTENT_FLOW_TIMEOUT_S}s"}
+    except Exception as e:
+        return {"file": file_path, "ok": False,
+                "seconds": round(time.time() - started, 1),
+                "error": f"{type(e).__name__}: {e}"}
+
+    if staging:
+        # Self-heal instead of deny: a builder that "corrected" the unusual
+        # target back to src/pages/intents/ (the path the skill talks about)
+        # has still produced the right file — move it into quarantine rather
+        # than failing the flow over the location.
+        staged = os.path.join(_staging_dir(), basename)
+        stray = os.path.join(APP_ROOT, "src", "pages", "intents", basename)
+        if not os.path.exists(staged) and os.path.exists(stray):
+            os.makedirs(_staging_dir(), exist_ok=True)
+            os.replace(stray, staged)
+            print(f"[KLAR] Staging heal: moved {stray} -> {staged}", flush=True)
+        if not os.path.exists(staged):
+            return {"file": file_path, "ok": False,
+                    "seconds": round(time.time() - started, 1),
+                    "error": "page session ended without writing the file"}
+
+    seconds = round(time.time() - started, 1)
+    _emit({"type": "tool_result", "tool": "IntentPage",
+           "tool_use_id": f"intent:{tag}",
+           "output": f"{file_path} done in {seconds}s",
+           "t": round(time.time() - _t0, 1),
+           "actor": "main", "parent_id": None})
+    return {"file": file_path, "ok": True, "seconds": seconds,
+            "summary": ("\n".join(texts))[-1500:]}
+
+
+# The wiring metadata the integration step feeds to wire-intent.mjs. Slug and
+# icon are validated here because the manifest is model-authored and its
+# values end up in shell commands and in App.tsx — garbage must die at the
+# tool boundary, not in the integration band.
+_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+_ICON_RE = re.compile(r"^Icon[A-Za-z0-9]+$")
+
+
+def _wiring_error(flow: dict) -> str | None:
+    """None when the flow carries valid wiring metadata; else the reason."""
+    slug = str(flow.get("slug", "")).strip()
+    label = str(flow.get("label", "")).strip()
+    icon = str(flow.get("icon", "")).strip()
+    description = str(flow.get("description", "")).strip()
+    if not (slug and label and icon and description):
+        return "staging mode needs slug, label, icon and description per flow"
+    if not _SLUG_RE.match(slug):
+        return f"invalid slug {slug!r} (lowercase letters, digits, dashes)"
+    if not _ICON_RE.match(icon):
+        return f"invalid icon {icon!r} (Tabler component name like IconCalendarPlus)"
+    return None
+
+
+def _write_staging_manifest(entries: list[dict]) -> None:
+    """Persist wiring data for the integration step. MERGED by file, not
+    overwritten: a re-call of the tool for one FAILED flow must not erase the
+    entries of the flows that already succeeded."""
+    os.makedirs(_staging_dir(), exist_ok=True)
+    path = os.path.join(_staging_dir(), "manifest.json")
+    merged: dict[str, dict] = {}
+    try:
+        with open(path) as fh:
+            for entry in json.load(fh).get("flows", []):
+                merged[entry.get("file", "")] = entry
+    except (OSError, ValueError):
+        pass
+    for entry in entries:
+        merged[entry.get("file", "")] = entry
+    merged.pop("", None)
+    with open(path, "w") as fh:
+        json.dump({"flows": list(merged.values())}, fh, indent=2)
+
+
+@tool(
+    "build_intent_pages",
+    "Build EVERY intent flow page. Pass all flows in this ONE call — they run "
+    "concurrently, so the wall-clock is the slowest page, not their sum. "
+    "Each entry: {file: 'src/pages/intents/XPage.tsx', brief: '<the full brief>', "
+    "slug: 'kebab-case-route', label: '1-3 German words', icon: 'IconCalendarPlus', "
+    "description: 'one German line'}. "
+    "There is no other way to create intent pages.",
+    {
+        "type": "object",
+        "properties": {
+            "flows": {
+                # Live-proven TWICE: the orchestrator stringifies the array
+                # despite an explicit description telling it not to, and the
+                # schema rejection cost ~30s per run. Accept the string and
+                # parse it in the handler — tolerating beats re-prompting.
+                "type": ["array", "string"],
+                "minItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string",
+                                 "description": "src/pages/intents/{PascalCase}Page.tsx"},
+                        "brief": {"type": "string",
+                                  "description": "The complete brief for this one page."},
+                        "slug": {"type": "string",
+                                 "description": "Route slug, kebab-case (e.g. neue-buchung)."},
+                        "label": {"type": "string",
+                                  "description": "Sidebar label, 1-3 German words."},
+                        "icon": {"type": "string",
+                                 "description": "Tabler icon COMPONENT name (IconCalendarPlus)."},
+                        "description": {"type": "string",
+                                        "description": "One German line for the registry entry."},
+                    },
+                    "required": ["file", "brief"],
+                },
+            }
+        },
+        "required": ["flows"],
+    },
+)
+async def _build_intent_pages(args: dict) -> dict:
+    flows = args.get("flows") or []
+    if isinstance(flows, str):
+        # The schema admits a JSON-encoded string (see the schema comment).
+        try:
+            flows = json.loads(flows)
+        except ValueError:
+            flows = []
+        if not isinstance(flows, list):
+            flows = []
+        flows = [f for f in flows if isinstance(f, dict)]
+    if not isinstance(flows, list) or not flows:
+        return {"content": [{"type": "text", "text": "No flows given — pass one entry per intent page."}],
+                "is_error": True}
+
+    staging = _staging_mode()
+
+    # Fail wiring-metadata problems BEFORE spawning a session — a 100s page
+    # build that cannot be wired afterwards is money spent on a dead file.
+    invalid: list[dict] = []
+    runnable: list[dict] = []
+    if staging:
+        for flow in flows:
+            err = _wiring_error(flow)
+            if err:
+                invalid.append({"file": str(flow.get("file", "")), "ok": False,
+                                "seconds": 0.0, "error": err, "flow": flow})
+            else:
+                runnable.append(flow)
+    else:
+        runnable = flows
+
+    batch_started = time.time()
+    print(f"[KLAR] Intent fan-out: {len(runnable)} page(s) in parallel", flush=True)
+
+    results = await asyncio.gather(
+        *(_build_one_intent_page(flow, i) for i, flow in enumerate(runnable))
+    )
+
+    total = round(time.time() - batch_started, 1)
+    slowest = max((r["seconds"] for r in results), default=0.0)
+    serial = round(sum(r["seconds"] for r in results), 1)
+    print(f"[KLAR] Intent fan-out done: {total}s wall-clock "
+          f"(slowest page {slowest}s, serial would have been {serial}s)", flush=True)
+
+    all_results = list(results) + [
+        {k: v for k, v in inv.items() if k != "flow"} for inv in invalid
+    ]
+
+    if staging:
+        entries = []
+        for flow, result in list(zip(runnable, results)) + [
+            (inv["flow"], inv) for inv in invalid
+        ]:
+            basename = str(flow.get("file", "")).rsplit("/", 1)[-1]
+            entries.append({
+                "file": str(flow.get("file", "")),
+                "component": basename[:-4] if basename.endswith(".tsx") else basename,
+                "slug": str(flow.get("slug", "")).strip(),
+                "label": str(flow.get("label", "")).strip(),
+                "icon": str(flow.get("icon", "")).strip(),
+                "description": str(flow.get("description", "")).strip(),
+                "ok": bool(result.get("ok")),
+                "error": result.get("error"),
+            })
+        _write_staging_manifest(entries)
+
+    lines = [f"{len(runnable)} intent page(s) built in {total}s (parallel).", ""]
+    for r in all_results:
+        if r["ok"]:
+            lines.append(f"OK  {r['file']}  ({r['seconds']}s)")
+        else:
+            lines.append(f"FAILED  {r['file']}  ({r['seconds']}s): {r['error']}")
+    if any(not r["ok"] for r in all_results):
+        lines += ["", "A failed page does NOT exist on disk. Do not wire it — either call this",
+                  "tool again with just that flow, or drop it and wire only the pages that built."]
+    if staging:
+        lines += ["", "Your job is DONE — the integration step after the dashboard phase",
+                  "moves, wires and builds these pages. Do NOT wire or build anything. STOP now."]
+    else:
+        lines += ["", "Next: wire each page that built with scripts/wire-intent.mjs, then npm run build."]
+    return {"content": [{"type": "text", "text": "\n".join(lines)}]}
+
+
 # ── System prompt variants ──────────────────────────────────────────
 
 # Phase 1 (dashboard): identical to actions branch — full detailed rules
 SYSTEM_APPEND_DASHBOARD = (
     "MANDATORY RULES (highest priority):\n"
     "- No design_brief.md — analyze data in 1-2 sentences, then implement directly\n"
-    "- DashboardOverview.tsx: Call Read('src/pages/DashboardOverview.tsx') FIRST, then Write ONCE with complete content. Never read back after writing.\n"
+    "- DashboardOverview.tsx: Call Read('src/pages/DashboardOverview.tsx') FIRST, then Write ONCE with complete content. Never read back after writing. Keep the DashboardSkeleton/DashboardError import (@/components/DashboardStates) and the two early-returns — never re-implement them.\n"
     "- NEVER use Bash for file operations (no cat, echo, heredoc, >, >>). ALWAYS use Read/Write/Edit tools. If a tool fails, retry with the SAME tool — never fall back to Bash.\n"
     "- index.css: NEVER touch — pre-generated design system (font, colors, sidebar). Use existing tokens.\n"
     "- Layout.tsx: APP_TITLE is pre-set to the appgroup name. Do NOT edit unless you need a different title.\n"
     "- CRUD pages/dialogs: NEVER touch — complete with all logic\n"
     "- App.tsx, PageShell.tsx, StatCard.tsx, ConfirmDialog.tsx: NEVER touch\n"
-    "- No Read-back after Write/Edit\n"
-    "- No Read of files whose contents are in .scaffold_context\n"
-    "- Read .scaffold_context FIRST to understand all generated files\n"
+    "- No Read-back after Write/Edit. A gate/tsc error is the exception: repair the flagged LINES with Edit (they are quoted for you) — never re-Write the whole file\n"
+    "- No Read of files whose contents are in .scaffold_context or the .scaffold_files_p* parts\n"
+    "- Read .scaffold_context FIRST, then each .scaffold_files_p* part it lists (one Read each) to understand all generated files\n"
     "- useDashboardData.ts, enriched.ts, enrich.ts, formatters.ts, ai.ts, ChatWidget.tsx: NEVER touch — use as-is\n"
     "- src/config/ai-features.ts: MAY edit — set AI_PHOTO_SCAN['Entity'] = true to enable photo scan in dialogs\n"
     "- Rules of Hooks: ALL hooks (useState, useEffect, useMemo, useCallback) MUST be BEFORE any early returns (loading/error). Never place a hook after 'if (loading) return' or 'if (error) return'.\n"
@@ -519,12 +996,13 @@ async def main():
             model="haiku",
         ),
     }
-    if build_phase in ("intents", "all"):
-        agents["intent_builder"] = AgentDefinition(
-            description="Builds one intent-specific UI page from scratch. Give it the file path to create and the intent description.",
-            prompt=INTENT_BUILDER_PROMPT,
-            tools=SUBAGENT_TOOLS,
-            model="inherit",
+    # NOTE: there is deliberately no `intent_builder` AgentDefinition. Intent
+    # pages are built by the build_intent_pages tool below, which fans out with
+    # asyncio.gather — see the comment there for why a rule was not enough.
+    mcp_servers = {}
+    if build_phase in ("intents", "intents-pages", "all"):
+        mcp_servers["klar"] = create_sdk_mcp_server(
+            name="klar", version="1.0.0", tools=[_build_intent_pages]
         )
 
     # Select system prompt based on build phase
@@ -532,10 +1010,26 @@ async def main():
         system_append = SYSTEM_APPEND_DASHBOARD
     else:
         system_append = SYSTEM_APPEND_ORCHESTRATOR
+    if build_phase == "intents-pages":
+        # The detailed orchestrator rules normally travel as CLAUDE.md
+        # (SANDBOX_PROMPT_INTENTS.md → CLAUDE.md). While Phase 1 runs
+        # concurrently, CLAUDE.md is the DASHBOARD prompt and must stay
+        # untouched — so the rules ride in the system append instead, from a
+        # neutral file the backend writes during setup.
+        try:
+            with open(os.path.join(APP_ROOT, ".intents-orchestrator.md"), encoding="utf-8") as fh:
+                system_append = system_append + "\n\n" + fh.read()
+        except OSError:
+            print("[KLAR] WARN: .intents-orchestrator.md fehlt — Orchestrator läuft ohne Detailregeln")
 
-    options = ClaudeAgentOptions(
+    option_kwargs = dict(
         hooks={
-            "PreToolUse": [HookMatcher(matcher="Read", hooks=[_block_subagent_files_for_main_agent], timeout=10)],
+            "PreToolUse": [
+                HookMatcher(matcher="Read", hooks=[_block_subagent_files_for_main_agent], timeout=10),
+                HookMatcher(matcher=None, hooks=[_deny_serial_intent_dispatch], timeout=10),
+                HookMatcher(matcher="Bash", hooks=[_deny_tree_commands_in_pages_mode], timeout=10),
+                HookMatcher(matcher=None, hooks=[_deny_intent_surface_in_dashboard_mode], timeout=10),
+            ],
             "PostToolUse": [HookMatcher(matcher=None, hooks=[_on_post_tool_use], timeout=60)],
         },
         system_prompt={
@@ -544,14 +1038,21 @@ async def main():
             "append": system_append,
         },
         thinking={"type": "disabled"},
-        setting_sources=["project"],
         permission_mode="bypassPermissions",
         disallowed_tools=["TodoWrite", "NotebookEdit", "WebFetch", "ExitPlanMode", "SlashCommand"],
         cwd="/home/user/app",
-        model="claude-sonnet-4-6",
+        model=AGENT_MODEL,
     )
+    if build_phase != "intents-pages":
+        # Auto-loads CLAUDE.md. In intents-pages mode CLAUDE.md is the
+        # dashboard-builder prompt of the concurrently running Phase 1 —
+        # loading it would give the orchestrator the wrong job description.
+        option_kwargs["setting_sources"] = ["project"]
+    options = ClaudeAgentOptions(**option_kwargs)
 
     options.agents = agents
+    if mcp_servers:
+        options.mcp_servers = mcp_servers
 
     # Session-Resume Unterstützung
     # BUG: agents + resume crashes the Claude CLI (tested SDK 0.1.50 + 0.1.58).
@@ -578,7 +1079,10 @@ async def main():
     prompt_file = "/home/user/app/.user_prompt"
     if os.path.exists(prompt_file):
         try:
-            with open(prompt_file, 'r') as f:
+            # encoding pinned: the container locale is not UTF-8, and the
+            # default decode turned "Aufträge" into "AuftrÃ¤ge" — mojibake
+            # that travels into flow labels and UI texts.
+            with open(prompt_file, 'r', encoding='utf-8') as f:
                 user_prompt = f.read().strip()
             if user_prompt:
                 print(f"[KLAR] Prompt aus Datei gelesen: {len(user_prompt)} Zeichen")
@@ -595,7 +1099,7 @@ async def main():
     instructions_file = "/home/user/app/.user_instructions"
     if os.path.exists(instructions_file):
         try:
-            with open(instructions_file, 'r') as f:
+            with open(instructions_file, 'r', encoding='utf-8') as f:
                 user_instructions = f.read().strip()
             if user_instructions:
                 print(f"[KLAR] User instructions aus Datei gelesen: {len(user_instructions)} Zeichen")
@@ -632,7 +1136,7 @@ Starte JETZT mit Schritt 1!"""
     elif build_phase == "dashboard":
         # Phase 1: Identical to actions branch — direct agent, no orchestrator overhead
         query = (
-            "Read .scaffold_context and app_metadata.json. "
+            "Read .scaffold_context (plus the .scaffold_files_p* parts it lists, one Read each) and app_metadata.json. "
             "Analyze data, decide UI paradigm in 1-2 sentences, then implement directly. "
             "Follow .claude/skills/frontend-impl/SKILL.md. "
             "Use existing types and services from src/types/ and src/services/. "
@@ -644,6 +1148,10 @@ Starte JETZT mit Schritt 1!"""
             query += (
                 f"\n\nADDITIONAL user instructions (treat as MINIMUM requirements, not as limits):\n"
                 f"<user-instructions>\n{user_instructions}\n</user-instructions>\n"
+                f"The user wrote these for the WHOLE build — other build tracks run alongside you. "
+                f"Wishes that are guided multi-step FLOWS (Abläufe/wizards), automations/tools (Werkzeuge) "
+                f"or public pages are THEIRS: do not build intent pages, do not touch src/config/intents.ts "
+                f"or the App.tsx custom markers — a hook denies it. Take only the dashboard-related wishes. "
                 f"You MUST still build the full dashboard with all features you think are useful for the users — "
                 f"analyze the data, decide the best UI paradigm, and implement everything you normally would. "
                 f"The user instructions above are ADDITIONS on top of your normal work, not replacements. "
@@ -652,6 +1160,41 @@ Starte JETZT mit Schritt 1!"""
             print(f"[KLAR] Phase 1: Dashboard build MIT User Instructions: {user_instructions}")
         else:
             print(f"[KLAR] Phase 1: Dashboard build (direct, no subagent)")
+
+    elif build_phase == "intents-pages":
+        # Parallel track: pages into staging while Phase 1 builds the
+        # dashboard in the same tree. NO wiring, NO gates, NO build — the
+        # integration step after the dashboard phase does that (a hook denies
+        # those commands, this is informational).
+        query = """\
+You are the FLOW-PAGES BUILDER (runs PARALLEL to the dashboard phase). \
+Read .entity_summary (short, ~30 lines) for entity info. Do NOT read .scaffold_context or app_metadata.json. \
+Do NOT touch any file under src/ — the dashboard builder owns the tree right now.
+
+Your ONLY deliverable: decide which intent flows this app needs (same rules as ever — \
+distinct multi-entity workflow phases, no redundant intents, the decision gate below), then call \
+`build_intent_pages` ONCE with every flow. Each entry carries file, brief AND the wiring metadata \
+(slug, label, icon, description) — the integration step wires from exactly these values, you never \
+run wire-intent.mjs, the gates or npm build yourself. When the tool returns, report one line per \
+flow and STOP.
+
+If the decision gate says SKIP (workflows fit in the dashboard): do NOTHING and STOP — \
+the integration step clears the sidebar ghost rows itself.
+
+The full orchestrator rules (what makes a good flow, brief format, decision gate) are in your \
+system prompt below the mandatory rules — follow them for analysis and briefs, but IGNORE their \
+wiring/build steps: those belong to the integration step.
+"""
+        if user_instructions:
+            query += (
+                f"\nADDITIONAL user instructions — the user wrote these for the WHOLE build. "
+                f"Take what is yours (guided multi-step FLOWS); dashboard layout, tools/automations "
+                f"and public pages belong to other builders — ignore those parts:\n"
+                f"<user-instructions>\n{user_instructions}\n</user-instructions>"
+            )
+            print(f"[KLAR] Phase 2A: Flow-Seiten (parallel) MIT User Instructions")
+        else:
+            print(f"[KLAR] Phase 2A: Flow-Seiten (parallel)")
 
     elif build_phase == "intents":
         # Phase 2: Only intent builders — dashboard already deployed
@@ -723,51 +1266,50 @@ cannot fit in the dashboard because of its complexity. \
 \
 **IF SKIPPING:** The sidebar currently shows ghost rows ("Abläufe — werden erstellt …"). \
 You MUST clean them up before stopping: \
-1. Edit src/config/intents.ts — change `export const INTENTS_PENDING = true;` \
-   to `export const INTENTS_PENDING = false;` (one-line Edit, nothing else) \
+1. Run `node scripts/wire-intent.mjs --no-flows` — it flips INTENTS_PENDING to false, \
+   which removes the ghost rows (do NOT edit src/config/intents.ts by hand) \
 2. Run 'npm run build' and STOP.
 
-2. IF intent UIs are justified, DISPATCH 'intent_builder' subagents IN PARALLEL (in a single response) for each intent:
+2. IF intent UIs are justified, call the tool `build_intent_pages` ONCE with every flow in its \
+`flows` array — one entry per page, `{file, brief}`. The pages are built concurrently, so the cost \
+is the slowest page instead of their sum. There is no 'intent_builder' subagent; dispatching one \
+is denied. Per flow:
    - File path: src/pages/intents/{PascalCaseName}Page.tsx
    - DETAILED step-by-step description: what are the STEPS of the workflow, which entities are touched \
 in each step, what records get created/updated, what live feedback to show between steps
-   - Tell it to USE these pre-generated shared components (already available, no need to rebuild):
-     * IntentWizardShell from '@/components/IntentWizardShell' — wizard container with step indicator, \
-deep-linking (?step=N), loading/error. Props: steps, currentStep, onStepChange, loading, error, children. \
-Each step must provide its own action/navigation buttons — the shell does NOT render back/next buttons.
-     * EntitySelectStep from '@/components/EntitySelectStep' — reusable "pick an item" step with search. \
-Props: items (id, title, subtitle, status, stats), onSelect
-     * BudgetTracker from '@/components/BudgetTracker' — budget progress bar. Props: budget, booked
-     * StatusBadge from '@/components/StatusBadge' — universal status badge. Props: statusKey, label
-   - Tell it to import types, APP_IDS, LivingAppsService, extractRecordId, createRecordUrl from the scaffold
-   - Remind: lookup fields when WRITING use plain string keys, NOT {key, label} objects
-   - CRITICAL — do NOT use any pre-generated {Entity}Dialog inside the intent UI. \
-The {Entity}Dialog components are the generic CRUD forms with every field and a photo-scan modal — \
-they break the intent flow. The intent builder MUST build a task-tailored inline UI per step, \
-showing only the fields relevant for that step's decision and the most ergonomic input method \
-(date-range picker, tile-style multi-select, live total card, etc.). Submit calls \
-LivingAppsService.create<X>Entry() directly with correctly formatted fields (lookup = plain key string, \
-applookup = full URL via createRecordUrl, multipleapplookup = string[] of URLs).
+   - For EVERY selection step: WHICH records are eligible. That is your decision, not the user's — \
+a close-an-order flow that lists already-closed orders lets them be closed twice. Name the filter, \
+or say explicitly that all records qualify and why.
+   - COPY VERBATIM from .entity_summary: module paths, service method names, the `!` required markers, \
+applookup target app_ids, and the lookup keys listed after a lookup field's type \
+([lookup/select: a|b|c]) — a step that writes or filters a lookup field gets its exact keys \
+in the brief. Those are verified facts and quoting them is the point of that file.
+   - NOTHING ELSE. The page builder Reads `.claude/skills/intent-ui/SKILL.md` before it \
+writes any code, so it already owns the block contracts (IntentWizardShell, EntitySelectStep, \
+BudgetTracker, StatusBadge), the no-{Entity}Dialog rule, the lookup-write form and the import style — \
+from a source that is maintained, unlike your memory of it. Never name a type, helper or path you did \
+not read in .entity_summary: a brief that told the builder to import `EnrichedKunden` named a type \
+that does not exist.
+   - KEEP EACH BRIEF UNDER ~350 WORDS: file path, one-sentence goal, the steps (eligible records \
+with exact keys, fields as name![type: keys], service calls with app_ids), the module-paths block. \
+No "German UI" reminders, no date/hook/import rules, no required-fields recap — the ! markers \
+already carry it. A measured run spent ~40s just generating two briefs.
 
 DO NOT dispatch 'dashboard_builder'.
 
-3. After ALL intent_builder subagents complete:
-   - Edit src/App.tsx to add lazy imports and routes for the new intent pages.
-     CRITICAL: imports ONLY inside the `// <custom:imports>` markers, routes ONLY
-     inside the `{/* <custom:routes> */}` markers; keep everything else intact.
-   - Edit src/config/intents.ts to REGISTER every intent page — that puts it into
-     the SIDEBAR ("Abläufe" section renders from this registry; do NOT add any
-     navigation cards to the dashboard):
-     * icon imports inside `// <custom:intent-imports>`, entries inside `// <custom:intents>`
-     * entry shape: { path: '/intents/{slug}', label: '1-3 German words', icon: IconX, description: 'one line' }
-     * `path` must equal the App.tsx route; pick a fitting Tabler icon (COMPONENT reference, not JSX)
-     * Also change `export const INTENTS_PENDING = true;` to `false` — this swaps the
-       sidebar's ghost rows for your real entries
+3. After build_intent_pages returns (it reports OK/FAILED per page):
+   - Wire EACH flow with the script — one call per flow, do NOT edit src/App.tsx or
+     src/config/intents.ts by hand:
+       node scripts/wire-intent.mjs {PascalCaseName}Page {slug} '{1-3 German words}' {IconX} '{one line}'
+     It adds the lazy import + route to App.tsx, the icon import + registry entry to
+     src/config/intents.ts (the sidebar "Abläufe" section renders from that registry; do NOT
+     add navigation cards to the dashboard) and flips INTENTS_PENDING to false — that swaps
+     the sidebar's ghost rows for your real entries. Pick a fitting Tabler icon (COMPONENT
+     name like IconCalendarPlus). If the script fails it names the exact problem — fix that
+     and re-run; never edit outside the marker blocks, everything else is scaffold.
    - Run 'npm run build', fix any TypeScript errors, keep fixing until build succeeds
 
-4. After 'npm run build' succeeds, STOP immediately.
-
-CRITICAL: Dispatch ALL intent_builder subagents in a SINGLE response for maximum parallelism."""
+4. After 'npm run build' succeeds, STOP immediately."""
 
         print(f"[KLAR] Phase 2: Intents-only build")
 
@@ -842,45 +1384,46 @@ cannot fit in the dashboard because of its complexity. \
 \
 **IF SKIPPING:** The sidebar currently shows ghost rows ("Abläufe — werden erstellt …"). \
 You MUST clean them up before stopping: \
-1. Edit src/config/intents.ts — change `export const INTENTS_PENDING = true;` \
-   to `export const INTENTS_PENDING = false;` (one-line Edit, nothing else) \
+1. Run `node scripts/wire-intent.mjs --no-flows` — it flips INTENTS_PENDING to false, \
+   which removes the ghost rows (do NOT edit src/config/intents.ts by hand) \
 2. Run 'npm run build' and STOP.
 
-2. IF intent UIs are justified, DISPATCH ALL SUBAGENTS IN PARALLEL (in a single response):
-   a) For EACH intent, dispatch 'intent_builder' with:
+2. IF intent UIs are justified, call the tool `build_intent_pages` ONCE with every flow in its \
+`flows` array — one entry per page, `{file, brief}`. The pages are built concurrently, so the cost \
+is the slowest page instead of their sum. There is no 'intent_builder' subagent; dispatching one \
+is denied.
+   a) For EACH intent, one `flows` entry with:
       - File path: src/pages/intents/{PascalCaseName}Page.tsx
       - DETAILED step-by-step description: what are the STEPS of the workflow, which entities are touched \
 in each step, what records get created/updated, what live feedback to show between steps
-      - Tell it to USE these pre-generated shared components (already available, no need to rebuild):
-        * IntentWizardShell from '@/components/IntentWizardShell' — wizard container with step indicator, \
-deep-linking (?step=N), loading/error. Props: steps, currentStep, onStepChange, loading, error, children. \
-Each step must provide its own action/navigation buttons — the shell does NOT render back/next buttons.
-        * EntitySelectStep from '@/components/EntitySelectStep' — reusable "pick an item" step with search. \
-Props: items (id, title, subtitle, status, stats), onSelect
-        * BudgetTracker from '@/components/BudgetTracker' — budget progress bar. Props: budget, booked
-        * StatusBadge from '@/components/StatusBadge' — universal status badge. Props: statusKey, label
-      - Tell it to import types, APP_IDS, LivingAppsService, extractRecordId, createRecordUrl from the scaffold
-      - Remind: lookup fields when WRITING use plain string keys, NOT {key, label} objects
-      - CRITICAL — do NOT use any pre-generated {Entity}Dialog inside the intent UI. \
-The {Entity}Dialog components are the generic CRUD forms with every field and a photo-scan modal — \
-they break the intent flow. The intent builder MUST build a task-tailored inline UI per step, \
-showing only the fields relevant for that step's decision and the most ergonomic input method \
-(date-range picker, tile-style multi-select, live total card, etc.). Submit calls \
-LivingAppsService.create<X>Entry() directly with correctly formatted fields (lookup = plain key string, \
-applookup = full URL via createRecordUrl, multipleapplookup = string[] of URLs).
+      - For EVERY selection step: WHICH records are eligible. That is your decision, not the user's — \
+a close-an-order flow that lists already-closed orders lets them be closed twice. Name the filter, \
+or say explicitly that all records qualify and why.
+      - COPY VERBATIM from .entity_summary: module paths, service method names, the `!` required markers, \
+applookup target app_ids, and the lookup keys listed after a lookup field's type \
+([lookup/select: a|b|c]) — a step that writes or filters a lookup field gets its exact keys \
+in the brief. Those are verified facts and quoting them is the point of that file.
+      - NOTHING ELSE. The page builder Reads `.claude/skills/intent-ui/SKILL.md` before \
+it writes any code, so it already owns the block contracts (IntentWizardShell, EntitySelectStep, \
+BudgetTracker, StatusBadge), the no-{Entity}Dialog rule, the lookup-write form and the import style — \
+from a source that is maintained, unlike your memory of it. Never name a type, helper or path you did \
+not read in .entity_summary: a brief that told the builder to import `EnrichedKunden` named a type \
+that does not exist.
+      - KEEP EACH BRIEF UNDER ~350 WORDS: file path, one-sentence goal, the steps (eligible records \
+with exact keys, fields as name![type: keys], service calls with app_ids), the module-paths block. \
+No "German UI" reminders, no date/hook/import rules, no required-fields recap — the ! markers \
+already carry it. A measured run spent ~40s just generating two briefs.
 
-3. After ALL subagents complete:
-   - Edit src/App.tsx to add lazy imports and routes for the new intent pages.
-     CRITICAL: imports ONLY inside the `// <custom:imports>` markers, routes ONLY
-     inside the `{/* <custom:routes> */}` markers; keep everything else intact.
-   - Edit src/config/intents.ts to REGISTER every intent page — that puts it into
-     the SIDEBAR ("Abläufe" section renders from this registry; do NOT add any
-     navigation cards to the dashboard):
-     * icon imports inside `// <custom:intent-imports>`, entries inside `// <custom:intents>`
-     * entry shape: { path: '/intents/{slug}', label: '1-3 German words', icon: IconX, description: 'one line' }
-     * `path` must equal the App.tsx route; pick a fitting Tabler icon (COMPONENT reference, not JSX)
-     * Also change `export const INTENTS_PENDING = true;` to `false` — this swaps the
-       sidebar's ghost rows for your real entries
+3. After build_intent_pages returns (it reports OK/FAILED per page):
+   - Wire EACH flow with the script — one call per flow, do NOT edit src/App.tsx or
+     src/config/intents.ts by hand:
+       node scripts/wire-intent.mjs {PascalCaseName}Page {slug} '{1-3 German words}' {IconX} '{one line}'
+     It adds the lazy import + route to App.tsx, the icon import + registry entry to
+     src/config/intents.ts (the sidebar "Abläufe" section renders from that registry; do NOT
+     add navigation cards to the dashboard) and flips INTENTS_PENDING to false — that swaps
+     the sidebar's ghost rows for your real entries. Pick a fitting Tabler icon (COMPONENT
+     name like IconCalendarPlus). If the script fails it names the exact problem — fix that
+     and re-run; never edit outside the marker blocks, everything else is scaffold.
    - Run 'npm run build', fix any TypeScript errors, keep fixing until build succeeds
 
 4. After 'npm run build' succeeds, STOP immediately.
@@ -905,8 +1448,31 @@ CRITICAL: Dispatch ALL subagents in a SINGLE response for maximum parallelism.""
 
         t_last_step = t_agent_total_start
 
+        # Stall watchdog: the SDK retries rate-limited API calls silently, so
+        # a 429-backoff looks like a multi-minute hole in the stream. One
+        # line per 30s of silence makes the wait visible as it happens.
+        last_event = {"t": time.time()}
+
+        async def _stall_watchdog():
+            reported = 0.0
+            while True:
+                await asyncio.sleep(15)
+                silent = time.time() - last_event["t"]
+                if silent >= 30 and silent >= reported + 30:
+                    reported = silent
+                    print(
+                        f"[WAIT] {round(silent)}s ohne Modell-Event "
+                        f"(Rate-Limit-Backoff oder lange Generierung)",
+                        flush=True,
+                    )
+                elif silent < 30:
+                    reported = 0.0
+
+        watchdog = asyncio.create_task(_stall_watchdog())
+
         async for message in client.receive_response():
             now = time.time()
+            last_event["t"] = now
             elapsed = round(now - t_agent_total_start, 1)
             dt = round(now - t_last_step, 1)
             t_last_step = now
@@ -934,7 +1500,14 @@ CRITICAL: Dispatch ALL subagents in a SINGLE response for maximum parallelism.""
 
                 if message.session_id:
                     try:
-                        with open("/home/user/app/.claude_session_id", "w") as f:
+                        # Phase-suffixed in the parallel mode: two CLI
+                        # processes share this tree, and the last writer of
+                        # ONE file would hand Phase 1's session save the
+                        # WRONG session id.
+                        session_file = "/home/user/app/.claude_session_id"
+                        if build_phase == "intents-pages":
+                            session_file += "_intents"
+                        with open(session_file, "w") as f:
                             f.write(message.session_id)
                         print(f"[KLAR] ✅ Session ID in Datei gespeichert")
                     except Exception as e:
@@ -946,8 +1519,13 @@ CRITICAL: Dispatch ALL subagents in a SINGLE response for maximum parallelism.""
                     "status": status,
                     "cost": message.total_cost_usd,
                     "session_id": message.session_id,
-                    "duration_s": round(t_agent_total, 1)
+                    "duration_s": round(t_agent_total, 1),
+                    # cache_read vs cache_creation vs input tells whether prompt
+                    # caching carried the resumed history or every turn paid full
+                    "usage": getattr(message, "usage", None)
                 }), flush=True)
+
+        watchdog.cancel()
 
 if __name__ == "__main__":
     import sys

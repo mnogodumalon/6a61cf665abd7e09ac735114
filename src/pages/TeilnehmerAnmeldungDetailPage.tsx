@@ -85,7 +85,7 @@ export default function TeilnehmerAnmeldungDetailPage() {
       backLabel="Zurück"
       editLabel="Bearbeiten"
     >
-      <RecordHeader title={record.fields.participant_firstname ?? 'Teilnehmer-Anmeldung'} />
+      <RecordHeader title={record.fields.emergency_contact_email ?? 'Teilnehmer-Anmeldung'} />
 
       {(() => {
         const lookupLists: Record<string, unknown> = {
@@ -107,6 +107,7 @@ export default function TeilnehmerAnmeldungDetailPage() {
       })()}
 
       <RecordSection title="Details" cols={2}>
+        <RecordField label="E-Mail-Adresse des Notfallkontakts" value={record.fields.emergency_contact_email} format="email" />
         <RecordField label="Event" value={getEventVerwaltungDisplayName(record.fields.event)} format="text" />
         <RecordField label="Vorname" value={record.fields.participant_firstname} format="text" />
         <RecordField label="Nachname" value={record.fields.participant_lastname} format="text" />

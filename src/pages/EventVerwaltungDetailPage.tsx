@@ -119,6 +119,7 @@ export default function EventVerwaltungDetailPage() {
         <RecordField label="Nachname des Organisators" value={record.fields.organizer_lastname} format="text" />
         <RecordField label="E-Mail des Organisators" value={record.fields.organizer_email} format="email" />
         <RecordField label="Telefonnummer des Organisators" value={record.fields.organizer_phone} format="text" />
+        <RecordField label="Notizen" value={record.fields.organizer_notes} format="longtext" className="md:col-span-2" />
       </RecordSection>
 
       <RecordAttachments appId={APP_IDS.EVENT_VERWALTUNG} recordId={record.record_id} />

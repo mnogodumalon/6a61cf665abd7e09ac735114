@@ -47,26 +47,28 @@ const SKATEPARKSVERANSTALTUNGSORTE_FIELDS = [
 const EVENTVERWALTUNG_FIELDS = [
   { key: 'event_title', label: 'Titel des Events', type: 'string/text' },
   { key: 'event_description', label: 'Beschreibung', type: 'string/textarea' },
-  { key: 'event_category', label: 'Kategorie', type: 'lookup/select', options: [{ key: 'contest', label: 'Contest' }, { key: 'jam_session', label: 'Jam Session' }, { key: 'demo', label: 'Demo' }, { key: 'workshop', label: 'Workshop' }, { key: 'sonstiges', label: 'Sonstiges' }] },
+  { key: 'event_category', label: 'Kategorie', type: 'lookup/select', options: [{ key: 'jam_session', label: 'Jam Session' }, { key: 'demo', label: 'Demo' }, { key: 'workshop', label: 'Workshop' }, { key: 'sonstiges', label: 'Sonstiges' }, { key: 'contest', label: 'Contest' }] },
   { key: 'event_datetime', label: 'Datum und Uhrzeit', type: 'date/datetimeminute' },
   { key: 'skill_level', label: 'Schwierigkeitsgrad', type: 'lookup/select', options: [{ key: 'beginner', label: 'Anfänger' }, { key: 'intermediate', label: 'Fortgeschrittene' }, { key: 'advanced', label: 'Profis' }, { key: 'all_levels', label: 'Alle Levels' }] },
   { key: 'max_participants', label: 'Maximale Teilnehmerzahl', type: 'number' },
   { key: 'entry_fee', label: 'Startgebühr (in €)', type: 'number' },
-  { key: 'location', label: 'Veranstaltungsort', type: 'applookup/select', targetEntity: 'skateparks_&_veranstaltungsorte', targetAppId: 'SKATEPARKS_VERANSTALTUNGSORTE', displayField: 'location_name' },
+  { key: 'location', label: 'Veranstaltungsort', type: 'applookup/select', targetEntity: 'skateparks_veranstaltungsorte', targetAppId: 'SKATEPARKS_VERANSTALTUNGSORTE', displayField: 'location_name' },
   { key: 'organizer_firstname', label: 'Vorname des Organisators', type: 'string/text' },
   { key: 'organizer_lastname', label: 'Nachname des Organisators', type: 'string/text' },
   { key: 'organizer_email', label: 'E-Mail des Organisators', type: 'string/email' },
   { key: 'organizer_phone', label: 'Telefonnummer des Organisators', type: 'string/tel' },
   { key: 'event_flyer', label: 'Event-Flyer', type: 'file' },
+  { key: 'organizer_notes', label: 'Notizen', type: 'string/textarea' },
 ];
 const TEILNEHMERANMELDUNG_FIELDS = [
+  { key: 'emergency_contact_email', label: 'E-Mail-Adresse des Notfallkontakts', type: 'string/email' },
   { key: 'event', label: 'Event', type: 'applookup/select', targetEntity: 'event_verwaltung', targetAppId: 'EVENT_VERWALTUNG', displayField: 'event_title' },
   { key: 'participant_firstname', label: 'Vorname', type: 'string/text' },
   { key: 'participant_lastname', label: 'Nachname', type: 'string/text' },
   { key: 'participant_email', label: 'E-Mail-Adresse', type: 'string/email' },
   { key: 'participant_phone', label: 'Telefonnummer', type: 'string/tel' },
   { key: 'date_of_birth', label: 'Geburtsdatum', type: 'date/date' },
-  { key: 'participant_skill_level', label: 'Eigener Schwierigkeitsgrad', type: 'lookup/select', options: [{ key: 'intermediate', label: 'Fortgeschrittene' }, { key: 'advanced', label: 'Profi' }, { key: 'beginner', label: 'Anfänger' }] },
+  { key: 'participant_skill_level', label: 'Eigener Schwierigkeitsgrad', type: 'lookup/select', options: [{ key: 'beginner', label: 'Anfänger' }, { key: 'intermediate', label: 'Fortgeschrittene' }, { key: 'advanced', label: 'Profi' }] },
   { key: 'emergency_contact_name', label: 'Name des Notfallkontakts', type: 'string/text' },
   { key: 'emergency_contact_phone', label: 'Telefonnummer des Notfallkontakts', type: 'string/tel' },
   { key: 'tshirt_size', label: 'T-Shirt-Größe', type: 'lookup/select', options: [{ key: 'xs', label: 'XS' }, { key: 's', label: 'S' }, { key: 'm', label: 'M' }, { key: 'l', label: 'L' }, { key: 'xl', label: 'XL' }, { key: 'xxl', label: 'XXL' }] },
@@ -74,7 +76,7 @@ const TEILNEHMERANMELDUNG_FIELDS = [
 ];
 
 const ENTITY_TABS = [
-  { key: 'skateparks_&_veranstaltungsorte', label: 'Skateparks & Veranstaltungsorte', pascal: 'SkateparksVeranstaltungsorte' },
+  { key: 'skateparks_veranstaltungsorte', label: 'Skateparks & Veranstaltungsorte', pascal: 'SkateparksVeranstaltungsorte' },
   { key: 'event_verwaltung', label: 'Event-Verwaltung', pascal: 'EventVerwaltung' },
   { key: 'teilnehmer_anmeldung', label: 'Teilnehmer-Anmeldung', pascal: 'TeilnehmerAnmeldung' },
 ] as const;
@@ -85,14 +87,14 @@ export default function AdminPage() {
   const data = useDashboardData();
   const { loading, error, fetchAll } = data;
 
-  const [activeTab, setActiveTab] = useState<EntityKey>('skateparks_&_veranstaltungsorte');
+  const [activeTab, setActiveTab] = useState<EntityKey>('skateparks_veranstaltungsorte');
   const [selectedIds, setSelectedIds] = useState<Record<EntityKey, Set<string>>>(() => ({
-    'skateparks_&_veranstaltungsorte': new Set(),
+    'skateparks_veranstaltungsorte': new Set(),
     'event_verwaltung': new Set(),
     'teilnehmer_anmeldung': new Set(),
   }));
   const [filters, setFilters] = useState<Record<EntityKey, Record<string, string>>>(() => ({
-    'skateparks_&_veranstaltungsorte': {},
+    'skateparks_veranstaltungsorte': {},
     'event_verwaltung': {},
     'teilnehmer_anmeldung': {},
   }));
@@ -109,7 +111,7 @@ export default function AdminPage() {
 
   const getRecords = useCallback((entity: EntityKey) => {
     switch (entity) {
-      case 'skateparks_&_veranstaltungsorte': return (data as any).skateparksVeranstaltungsorte as SkateparksVeranstaltungsorte[] ?? [];
+      case 'skateparks_veranstaltungsorte': return (data as any).skateparksVeranstaltungsorte as SkateparksVeranstaltungsorte[] ?? [];
       case 'event_verwaltung': return (data as any).eventVerwaltung as EventVerwaltung[] ?? [];
       case 'teilnehmer_anmeldung': return (data as any).teilnehmerAnmeldung as TeilnehmerAnmeldung[] ?? [];
       default: return [];
@@ -148,7 +150,7 @@ export default function AdminPage() {
 
   const getFieldMeta = useCallback((entity: EntityKey) => {
     switch (entity) {
-      case 'skateparks_&_veranstaltungsorte': return SKATEPARKSVERANSTALTUNGSORTE_FIELDS;
+      case 'skateparks_veranstaltungsorte': return SKATEPARKSVERANSTALTUNGSORTE_FIELDS;
       case 'event_verwaltung': return EVENTVERWALTUNG_FIELDS;
       case 'teilnehmer_anmeldung': return TEILNEHMERANMELDUNG_FIELDS;
       default: return [];
@@ -245,7 +247,7 @@ export default function AdminPage() {
 
   const getServiceMethods = useCallback((entity: EntityKey) => {
     switch (entity) {
-      case 'skateparks_&_veranstaltungsorte': return {
+      case 'skateparks_veranstaltungsorte': return {
         create: (fields: any) => LivingAppsService.createSkateparksVeranstaltungsorteEntry(fields),
         update: (id: string, fields: any) => LivingAppsService.updateSkateparksVeranstaltungsorteEntry(id, fields),
         remove: (id: string) => LivingAppsService.deleteSkateparksVeranstaltungsorteEntry(id),
@@ -600,12 +602,12 @@ export default function AdminPage() {
         </Table>
       </div>
 
-      {(createEntity === 'skateparks_&_veranstaltungsorte' || dialogState?.entity === 'skateparks_&_veranstaltungsorte') && (
+      {(createEntity === 'skateparks_veranstaltungsorte' || dialogState?.entity === 'skateparks_veranstaltungsorte') && (
         <SkateparksVeranstaltungsorteDialog
-          open={createEntity === 'skateparks_&_veranstaltungsorte' || dialogState?.entity === 'skateparks_&_veranstaltungsorte'}
+          open={createEntity === 'skateparks_veranstaltungsorte' || dialogState?.entity === 'skateparks_veranstaltungsorte'}
           onClose={() => { setCreateEntity(null); setDialogState(null); }}
-          onSubmit={dialogState?.entity === 'skateparks_&_veranstaltungsorte' ? handleUpdate : (fields: any) => handleCreate('skateparks_&_veranstaltungsorte', fields)}
-          defaultValues={dialogState?.entity === 'skateparks_&_veranstaltungsorte' ? dialogState.record?.fields : undefined}
+          onSubmit={dialogState?.entity === 'skateparks_veranstaltungsorte' ? handleUpdate : (fields: any) => handleCreate('skateparks_veranstaltungsorte', fields)}
+          defaultValues={dialogState?.entity === 'skateparks_veranstaltungsorte' ? dialogState.record?.fields : undefined}
           enablePhotoScan={AI_PHOTO_SCAN['SkateparksVeranstaltungsorte']}
           enablePhotoLocation={AI_PHOTO_LOCATION['SkateparksVeranstaltungsorte']}
         />
@@ -632,12 +634,12 @@ export default function AdminPage() {
           enablePhotoLocation={AI_PHOTO_LOCATION['TeilnehmerAnmeldung']}
         />
       )}
-      {viewState?.entity === 'skateparks_&_veranstaltungsorte' && (
+      {viewState?.entity === 'skateparks_veranstaltungsorte' && (
         <SkateparksVeranstaltungsorteViewDialog
-          open={viewState?.entity === 'skateparks_&_veranstaltungsorte'}
+          open={viewState?.entity === 'skateparks_veranstaltungsorte'}
           onClose={() => setViewState(null)}
           record={viewState?.record}
-          onEdit={(r: any) => { setViewState(null); setDialogState({ entity: 'skateparks_&_veranstaltungsorte', record: r }); }}
+          onEdit={(r: any) => { setViewState(null); setDialogState({ entity: 'skateparks_veranstaltungsorte', record: r }); }}
         />
       )}
       {viewState?.entity === 'event_verwaltung' && (

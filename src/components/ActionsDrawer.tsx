@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   IconBolt, IconChevronDown, IconCode, IconDownload, IconFile, IconFileTypePdf,
@@ -107,8 +107,26 @@ function ActionRow({
     if (hasFreshFiles) setFilesOpen(true);
   }, [hasFreshFiles]);
 
+  // Arriving via highlight (code drawer ←, version/run-card title): latch
+  // the flash locally so it plays out even when the context marker clears
+  // mid-animation, center the card so it's unmissable in a long list, and
+  // open the files list — the run the user came from usually left its
+  // output there.
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  const [flash, setFlash] = useState(false);
+  useEffect(() => {
+    if (!highlight) return;
+    setFlash(true);
+    setFilesOpen(true);
+    rowRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [highlight]);
+
   return (
-    <div className={`rounded-2xl border bg-card shadow-sm overflow-hidden${highlight ? ' animate-[action-return_1.4s_ease-out]' : ''}`}>
+    <div
+      ref={rowRef}
+      onAnimationEnd={(e) => { if (e.animationName === 'action-return') setFlash(false); }}
+      className={`rounded-2xl border bg-card shadow-sm overflow-hidden${flash ? ' animate-[action-return_2s_ease-out_0.25s_both]' : ''}`}
+    >
       <div className="flex items-start gap-3 p-4">
         <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <IconBolt size={18} />

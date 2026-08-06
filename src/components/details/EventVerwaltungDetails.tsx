@@ -50,6 +50,7 @@ export function EventVerwaltungDetails({
             <MediaThumbnail src={record.fields.event_flyer as string} fit="contain" className="max-h-64 w-full rounded-lg" />
           ) : '—'}
         </RecordField>
+        <RecordField label="Notizen" value={record.fields.organizer_notes} format="longtext" className="md:col-span-2" />
       </RecordSection>
 
       {/* N:1 — verknüpfte Records: IMMER klickbar, nie eine Text-Sackgasse. */}
@@ -65,7 +66,7 @@ export function EventVerwaltungDetails({
       <SatelliteSection
         title="Teilnehmer-Anmeldung"
         items={teilnehmerAnmeldungList.filter(r => extractRecordId(r.fields.event) === record.record_id)}
-        map={r => ({ name: r.fields.participant_firstname ?? 'Teilnehmer-Anmeldung', meta: r.fields.date_of_birth })}
+        map={r => ({ name: r.fields.emergency_contact_email ?? 'Teilnehmer-Anmeldung', meta: r.fields.date_of_birth })}
         onOpen={onOpenTeilnehmerAnmeldung}
         onAdd={onAddTeilnehmerAnmeldung}
         getKey={r => r.record_id}

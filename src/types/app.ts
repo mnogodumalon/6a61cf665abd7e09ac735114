@@ -23,6 +23,12 @@ export interface AttachmentInput {
 
 export interface SkateparksVeranstaltungsorte {
   record_id: string;
+  /** The API field. */
+  created_at: string;
+  updated_at: string | null;
+  /** Alias of created_at, filled by the read helpers. The API sends
+   *  snake_case only — reading `createdat` off a raw record yields
+   *  undefined, which type-checks and then crashes at runtime. */
   createdat: string;
   updatedat: string | null;
   fields: {
@@ -39,6 +45,12 @@ export interface SkateparksVeranstaltungsorte {
 
 export interface EventVerwaltung {
   record_id: string;
+  /** The API field. */
+  created_at: string;
+  updated_at: string | null;
+  /** Alias of created_at, filled by the read helpers. The API sends
+   *  snake_case only — reading `createdat` off a raw record yields
+   *  undefined, which type-checks and then crashes at runtime. */
   createdat: string;
   updatedat: string | null;
   fields: {
@@ -55,14 +67,22 @@ export interface EventVerwaltung {
     organizer_email?: string;
     organizer_phone?: string;
     event_flyer?: string;
+    organizer_notes?: string;
   };
 }
 
 export interface TeilnehmerAnmeldung {
   record_id: string;
+  /** The API field. */
+  created_at: string;
+  updated_at: string | null;
+  /** Alias of created_at, filled by the read helpers. The API sends
+   *  snake_case only — reading `createdat` off a raw record yields
+   *  undefined, which type-checks and then crashes at runtime. */
   createdat: string;
   updatedat: string | null;
   fields: {
+    emergency_contact_email?: string;
     event?: string; // applookup -> URL zu 'EventVerwaltung' Record
     participant_firstname?: string;
     participant_lastname?: string;
@@ -86,17 +106,17 @@ export const APP_IDS = {
 
 export const LOOKUP_OPTIONS: Record<string, Record<string, {key: string, label: string}[]>> = {
   'event_verwaltung': {
-    event_category: [{ key: "contest", label: "Contest" }, { key: "jam_session", label: "Jam Session" }, { key: "demo", label: "Demo" }, { key: "workshop", label: "Workshop" }, { key: "sonstiges", label: "Sonstiges" }],
+    event_category: [{ key: "jam_session", label: "Jam Session" }, { key: "demo", label: "Demo" }, { key: "workshop", label: "Workshop" }, { key: "sonstiges", label: "Sonstiges" }, { key: "contest", label: "Contest" }],
     skill_level: [{ key: "beginner", label: "Anfänger" }, { key: "intermediate", label: "Fortgeschrittene" }, { key: "advanced", label: "Profis" }, { key: "all_levels", label: "Alle Levels" }],
   },
   'teilnehmer_anmeldung': {
-    participant_skill_level: [{ key: "intermediate", label: "Fortgeschrittene" }, { key: "advanced", label: "Profi" }, { key: "beginner", label: "Anfänger" }],
+    participant_skill_level: [{ key: "beginner", label: "Anfänger" }, { key: "intermediate", label: "Fortgeschrittene" }, { key: "advanced", label: "Profi" }],
     tshirt_size: [{ key: "xs", label: "XS" }, { key: "s", label: "S" }, { key: "m", label: "M" }, { key: "l", label: "L" }, { key: "xl", label: "XL" }, { key: "xxl", label: "XXL" }],
   },
 };
 
 export const FIELD_TYPES: Record<string, Record<string, string>> = {
-  'skateparks_&_veranstaltungsorte': {
+  'skateparks_veranstaltungsorte': {
     'location_name': 'string/text',
     'street': 'string/text',
     'house_number': 'string/text',
@@ -120,8 +140,10 @@ export const FIELD_TYPES: Record<string, Record<string, string>> = {
     'organizer_email': 'string/email',
     'organizer_phone': 'string/tel',
     'event_flyer': 'file',
+    'organizer_notes': 'string/textarea',
   },
   'teilnehmer_anmeldung': {
+    'emergency_contact_email': 'string/email',
     'event': 'applookup/select',
     'participant_firstname': 'string/text',
     'participant_lastname': 'string/text',
@@ -138,6 +160,10 @@ export const FIELD_TYPES: Record<string, Record<string, string>> = {
 
 export const HUB_TOPOLOGY: Record<string, { field: string; entity: string }[]> = {
 };
+
+// Aliases for the pre-0.0.279 app keys (see 4c).
+LOOKUP_OPTIONS['skateparks_&_veranstaltungsorte'] = LOOKUP_OPTIONS['skateparks_veranstaltungsorte'];
+FIELD_TYPES['skateparks_&_veranstaltungsorte'] = FIELD_TYPES['skateparks_veranstaltungsorte'];
 
 type StripLookup<T> = {
   [K in keyof T]: T[K] extends LookupValue | undefined ? string | LookupValue | undefined

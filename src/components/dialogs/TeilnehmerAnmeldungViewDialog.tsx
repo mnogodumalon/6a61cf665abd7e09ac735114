@@ -50,6 +50,10 @@ export function TeilnehmerAnmeldungViewDialog({ open, onClose, record, onEdit, e
 
         <div className="space-y-4">
           <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">E-Mail-Adresse des Notfallkontakts</Label>
+            <p className="text-sm">{record.fields.emergency_contact_email ?? '—'}</p>
+          </div>
+          <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Event</Label>
             <p className="text-sm">{getEventVerwaltungDisplayName(record.fields.event)}</p>
           </div>

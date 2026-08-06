@@ -75,6 +75,18 @@ export interface CallApiOptions {
   silent?: boolean;
 }
 
+/** What the create and update helpers resolve to. Same `record_id`
+ *  the read helpers expose, so the whole family behaves alike — the
+ *  raw REST answer only
+ *  carries `id`, and code that guessed (e.g. Object.keys(res)[0]) built
+ *  `/records/id` and got a 400 on the next write. */
+export interface MutationResult {
+  record_id: string;
+  id: string;
+  fields: Record<string, any>;
+  [key: string]: any;
+}
+
 async function callApi(method: string, endpoint: string, data?: any, options?: CallApiOptions) {
   const silent = options?.silent === true;
   let response: Response;
@@ -315,24 +327,27 @@ export async function getAppGroups(): Promise<AppGroupInfo[]> {
 }
 
 export class LivingAppsService {
-  // --- SKATEPARKS_&_VERANSTALTUNGSORTE ---
+  // --- SKATEPARKS_VERANSTALTUNGSORTE ---
   static async getSkateparksVeranstaltungsorte(): Promise<SkateparksVeranstaltungsorte[]> {
     const data = await callApi('GET', `/apps/${APP_IDS.SKATEPARKS_VERANSTALTUNGSORTE}/records`);
     const records = Object.entries(data).map(([id, rec]: [string, any]) => ({
-      record_id: id, ...rec
+      record_id: id, ...rec,
+      createdat: rec.created_at ?? '', updatedat: rec.updated_at ?? null,
     })) as SkateparksVeranstaltungsorte[];
-    return enrichLookupFields(records, 'skateparks_&_veranstaltungsorte');
+    return enrichLookupFields(records, 'skateparks_veranstaltungsorte');
   }
   static async getSkateparksVeranstaltungsorteEntry(id: string): Promise<SkateparksVeranstaltungsorte | undefined> {
     const data = await callApi('GET', `/apps/${APP_IDS.SKATEPARKS_VERANSTALTUNGSORTE}/records/${id}`);
-    const record = { record_id: data.id, ...data } as SkateparksVeranstaltungsorte;
-    return enrichLookupFields([record], 'skateparks_&_veranstaltungsorte')[0];
+    const record = { record_id: data.id, ...data, createdat: data.created_at ?? '', updatedat: data.updated_at ?? null } as SkateparksVeranstaltungsorte;
+    return enrichLookupFields([record], 'skateparks_veranstaltungsorte')[0];
   }
-  static async createSkateparksVeranstaltungsorteEntry(fields: CreateSkateparksVeranstaltungsorte) {
-    return callApi('POST', `/apps/${APP_IDS.SKATEPARKS_VERANSTALTUNGSORTE}/records`, { fields: cleanFieldsForApi(fields as any, 'skateparks_&_veranstaltungsorte') });
+  static async createSkateparksVeranstaltungsorteEntry(fields: CreateSkateparksVeranstaltungsorte): Promise<MutationResult> {
+    const data = await callApi('POST', `/apps/${APP_IDS.SKATEPARKS_VERANSTALTUNGSORTE}/records`, { fields: cleanFieldsForApi(fields as any, 'skateparks_veranstaltungsorte') });
+    return { ...data, record_id: data.id };
   }
-  static async updateSkateparksVeranstaltungsorteEntry(id: string, fields: Partial<CreateSkateparksVeranstaltungsorte>) {
-    return callApi('PATCH', `/apps/${APP_IDS.SKATEPARKS_VERANSTALTUNGSORTE}/records/${id}`, { fields: cleanFieldsForApi(fields as any, 'skateparks_&_veranstaltungsorte') });
+  static async updateSkateparksVeranstaltungsorteEntry(id: string, fields: Partial<CreateSkateparksVeranstaltungsorte>): Promise<MutationResult> {
+    const data = await callApi('PATCH', `/apps/${APP_IDS.SKATEPARKS_VERANSTALTUNGSORTE}/records/${id}`, { fields: cleanFieldsForApi(fields as any, 'skateparks_veranstaltungsorte') });
+    return { ...data, record_id: data.id };
   }
   static async deleteSkateparksVeranstaltungsorteEntry(id: string) {
     return callApi('DELETE', `/apps/${APP_IDS.SKATEPARKS_VERANSTALTUNGSORTE}/records/${id}`);
@@ -342,20 +357,23 @@ export class LivingAppsService {
   static async getEventVerwaltung(): Promise<EventVerwaltung[]> {
     const data = await callApi('GET', `/apps/${APP_IDS.EVENT_VERWALTUNG}/records`);
     const records = Object.entries(data).map(([id, rec]: [string, any]) => ({
-      record_id: id, ...rec
+      record_id: id, ...rec,
+      createdat: rec.created_at ?? '', updatedat: rec.updated_at ?? null,
     })) as EventVerwaltung[];
     return enrichLookupFields(records, 'event_verwaltung');
   }
   static async getEventVerwaltungEntry(id: string): Promise<EventVerwaltung | undefined> {
     const data = await callApi('GET', `/apps/${APP_IDS.EVENT_VERWALTUNG}/records/${id}`);
-    const record = { record_id: data.id, ...data } as EventVerwaltung;
+    const record = { record_id: data.id, ...data, createdat: data.created_at ?? '', updatedat: data.updated_at ?? null } as EventVerwaltung;
     return enrichLookupFields([record], 'event_verwaltung')[0];
   }
-  static async createEventVerwaltungEntry(fields: CreateEventVerwaltung) {
-    return callApi('POST', `/apps/${APP_IDS.EVENT_VERWALTUNG}/records`, { fields: cleanFieldsForApi(fields as any, 'event_verwaltung') });
+  static async createEventVerwaltungEntry(fields: CreateEventVerwaltung): Promise<MutationResult> {
+    const data = await callApi('POST', `/apps/${APP_IDS.EVENT_VERWALTUNG}/records`, { fields: cleanFieldsForApi(fields as any, 'event_verwaltung') });
+    return { ...data, record_id: data.id };
   }
-  static async updateEventVerwaltungEntry(id: string, fields: Partial<CreateEventVerwaltung>) {
-    return callApi('PATCH', `/apps/${APP_IDS.EVENT_VERWALTUNG}/records/${id}`, { fields: cleanFieldsForApi(fields as any, 'event_verwaltung') });
+  static async updateEventVerwaltungEntry(id: string, fields: Partial<CreateEventVerwaltung>): Promise<MutationResult> {
+    const data = await callApi('PATCH', `/apps/${APP_IDS.EVENT_VERWALTUNG}/records/${id}`, { fields: cleanFieldsForApi(fields as any, 'event_verwaltung') });
+    return { ...data, record_id: data.id };
   }
   static async deleteEventVerwaltungEntry(id: string) {
     return callApi('DELETE', `/apps/${APP_IDS.EVENT_VERWALTUNG}/records/${id}`);
@@ -365,20 +383,23 @@ export class LivingAppsService {
   static async getTeilnehmerAnmeldung(): Promise<TeilnehmerAnmeldung[]> {
     const data = await callApi('GET', `/apps/${APP_IDS.TEILNEHMER_ANMELDUNG}/records`);
     const records = Object.entries(data).map(([id, rec]: [string, any]) => ({
-      record_id: id, ...rec
+      record_id: id, ...rec,
+      createdat: rec.created_at ?? '', updatedat: rec.updated_at ?? null,
     })) as TeilnehmerAnmeldung[];
     return enrichLookupFields(records, 'teilnehmer_anmeldung');
   }
   static async getTeilnehmerAnmeldungEntry(id: string): Promise<TeilnehmerAnmeldung | undefined> {
     const data = await callApi('GET', `/apps/${APP_IDS.TEILNEHMER_ANMELDUNG}/records/${id}`);
-    const record = { record_id: data.id, ...data } as TeilnehmerAnmeldung;
+    const record = { record_id: data.id, ...data, createdat: data.created_at ?? '', updatedat: data.updated_at ?? null } as TeilnehmerAnmeldung;
     return enrichLookupFields([record], 'teilnehmer_anmeldung')[0];
   }
-  static async createTeilnehmerAnmeldungEntry(fields: CreateTeilnehmerAnmeldung) {
-    return callApi('POST', `/apps/${APP_IDS.TEILNEHMER_ANMELDUNG}/records`, { fields: cleanFieldsForApi(fields as any, 'teilnehmer_anmeldung') });
+  static async createTeilnehmerAnmeldungEntry(fields: CreateTeilnehmerAnmeldung): Promise<MutationResult> {
+    const data = await callApi('POST', `/apps/${APP_IDS.TEILNEHMER_ANMELDUNG}/records`, { fields: cleanFieldsForApi(fields as any, 'teilnehmer_anmeldung') });
+    return { ...data, record_id: data.id };
   }
-  static async updateTeilnehmerAnmeldungEntry(id: string, fields: Partial<CreateTeilnehmerAnmeldung>) {
-    return callApi('PATCH', `/apps/${APP_IDS.TEILNEHMER_ANMELDUNG}/records/${id}`, { fields: cleanFieldsForApi(fields as any, 'teilnehmer_anmeldung') });
+  static async updateTeilnehmerAnmeldungEntry(id: string, fields: Partial<CreateTeilnehmerAnmeldung>): Promise<MutationResult> {
+    const data = await callApi('PATCH', `/apps/${APP_IDS.TEILNEHMER_ANMELDUNG}/records/${id}`, { fields: cleanFieldsForApi(fields as any, 'teilnehmer_anmeldung') });
+    return { ...data, record_id: data.id };
   }
   static async deleteTeilnehmerAnmeldungEntry(id: string) {
     return callApi('DELETE', `/apps/${APP_IDS.TEILNEHMER_ANMELDUNG}/records/${id}`);

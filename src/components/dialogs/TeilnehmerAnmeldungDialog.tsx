@@ -1,3 +1,18 @@
+/**
+ * TeilnehmerAnmeldungDialog — pre-generated create/edit dialog for TeilnehmerAnmeldung.
+ *
+ * Props: open, onClose, onSubmit(fields) => Promise<void>, defaultValues?,
+ * recordId? (pass when EDITING — enables the attachments section),
+ * eventVerwaltungList (full hook array — resolves the EventVerwaltung applookup),
+ * enablePhotoScan?, enablePhotoLocation?.
+ *
+ * defaultValues is SHAPE-TOLERANT and its prop type is the EXPORTED
+ * TeilnehmerAnmeldungDialogDefaults — NOT the entity field type: lookup fields accept
+ * the bare KEY string (or LookupValue), applookup fields the bare record id
+ * (or record URL); the dialog normalizes. Type prefill STATE with the export:
+ *  ❌ useState<Partial<TeilnehmerAnmeldung['fields']>>({ … })   // LookupValue fields reject string prefills (TS2322)
+ *  ✓ useState<TeilnehmerAnmeldungDialogDefaults | undefined>(undefined)
+ */
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { TeilnehmerAnmeldung, EventVerwaltung, LookupValue } from '@/types/app';
 import { APP_IDS, LOOKUP_OPTIONS } from '@/types/app';
@@ -26,6 +41,12 @@ import { IconAlertCircle, IconCamera, IconChevronDown, IconCircleCheck, IconClip
 import { fileToDataUri, extractFromInput, extractPhotoMeta, reverseGeocode } from '@/lib/ai';
 import { lookupKey } from '@/lib/formatters';
 
+/** Widened prefill type for TeilnehmerAnmeldungDialog.defaultValues — see file header. */
+export type TeilnehmerAnmeldungDialogDefaults = Omit<TeilnehmerAnmeldung['fields'], 'participant_skill_level' | 'tshirt_size'> & {
+    participant_skill_level?: LookupValue | string;
+    tshirt_size?: LookupValue | string;
+  };
+
 interface TeilnehmerAnmeldungDialogProps {
   open: boolean;
   onClose: () => void;
@@ -33,10 +54,7 @@ interface TeilnehmerAnmeldungDialogProps {
   /** SHAPE-TOLERANT: lookup fields accept the bare key (string) or the
    *  LookupValue object; applookup fields the bare record id or the full
    *  record URL — the dialog normalizes both. */
-  defaultValues?: Omit<TeilnehmerAnmeldung['fields'], 'participant_skill_level' | 'tshirt_size'> & {
-    participant_skill_level?: LookupValue | string;
-    tshirt_size?: LookupValue | string;
-  };
+  defaultValues?: TeilnehmerAnmeldungDialogDefaults;
   /** Record id when editing — enables the attachments section. Omit on create. */
   recordId?: string;
   eventVerwaltungList: EventVerwaltung[];
@@ -260,7 +278,7 @@ export function TeilnehmerAnmeldungDialog({ open, onClose, onSubmit, defaultValu
         }
       }
       const photoContext = contextParts.length ? contextParts.join('\n') : undefined;
-      const schema = `{\n  "event": string | null, // Display name from Event-Verwaltung (see <available-records>)\n  "participant_firstname": string | null, // Vorname\n  "participant_lastname": string | null, // Nachname\n  "participant_email": string | null, // E-Mail-Adresse\n  "participant_phone": string | null, // Telefonnummer\n  "date_of_birth": string | null, // YYYY-MM-DD\n  "participant_skill_level": LookupValue | null, // Eigener Schwierigkeitsgrad (select one key: "intermediate" | "advanced" | "beginner") mapping: intermediate=Fortgeschrittene, advanced=Profi, beginner=Anfänger\n  "emergency_contact_name": string | null, // Name des Notfallkontakts\n  "emergency_contact_phone": string | null, // Telefonnummer des Notfallkontakts\n  "tshirt_size": LookupValue | null, // T-Shirt-Größe (select one key: "xs" | "s" | "m" | "l" | "xl" | "xxl") mapping: xs=XS, s=S, m=M, l=L, xl=XL, xxl=XXL\n  "waiver_accepted": boolean | null, // Ich akzeptiere die Teilnahmebedingungen\n}`;
+      const schema = `{\n  "emergency_contact_email": string | null, // E-Mail-Adresse des Notfallkontakts\n  "event": string | null, // Display name from Event-Verwaltung (see <available-records>)\n  "participant_firstname": string | null, // Vorname\n  "participant_lastname": string | null, // Nachname\n  "participant_email": string | null, // E-Mail-Adresse\n  "participant_phone": string | null, // Telefonnummer\n  "date_of_birth": string | null, // YYYY-MM-DD\n  "participant_skill_level": LookupValue | null, // Eigener Schwierigkeitsgrad (select one key: "beginner" | "intermediate" | "advanced") mapping: beginner=Anfänger, intermediate=Fortgeschrittene, advanced=Profi\n  "emergency_contact_name": string | null, // Name des Notfallkontakts\n  "emergency_contact_phone": string | null, // Telefonnummer des Notfallkontakts\n  "tshirt_size": LookupValue | null, // T-Shirt-Größe (select one key: "xs" | "s" | "m" | "l" | "xl" | "xxl") mapping: xs=XS, s=S, m=M, l=L, xl=XL, xxl=XXL\n  "waiver_accepted": boolean | null, // Ich akzeptiere die Teilnahmebedingungen\n}`;
       const raw = await extractFromInput<Record<string, unknown>>(schema, {
         dataUri: uri,
         userText: aiText.trim() || undefined,
@@ -327,12 +345,24 @@ export function TeilnehmerAnmeldungDialog({ open, onClose, onSubmit, defaultValu
   const DIALOG_INTENT = defaultValues ? 'Teilnehmer-Anmeldung bearbeiten' : 'Teilnehmer-Anmeldung hinzufügen';
 
   const fieldBlocks: Record<string, React.ReactNode> = {
+    'emergency_contact_email': (
+      <div key="emergency_contact_email" className="space-y-1.5">
+        <Label htmlFor="emergency_contact_email">E-Mail-Adresse des Notfallkontakts</Label>
+        <Input
+          id="emergency_contact_email"
+          type="email"
+          placeholder=""
+          value={fields.emergency_contact_email ?? ''}
+          onChange={e => setFields(f => ({ ...f, emergency_contact_email: e.target.value }))}
+        />
+      </div>
+    ),
     'event': (
       <div key="event" className="space-y-1.5">
         <Label htmlFor="event">Event <span className="text-destructive" aria-hidden="true">*</span></Label>
         <Combobox
           id="event"
-          placeholder="Zu welchem Event anmelden?"
+          placeholder=""
           items={eventVerwaltungListAll.map(r => ({
             id: r.record_id,
             label: String(r.fields.event_title ?? r.record_id),
@@ -354,7 +384,7 @@ export function TeilnehmerAnmeldungDialog({ open, onClose, onSubmit, defaultValu
         <Label htmlFor="participant_firstname">Vorname <span className="text-destructive" aria-hidden="true">*</span></Label>
         <Input
           id="participant_firstname"
-          placeholder="z. B. Anna"
+          placeholder=""
           value={fields.participant_firstname ?? ''}
           onChange={e => setFields(f => ({ ...f, participant_firstname: e.target.value }))}
           required
@@ -369,7 +399,7 @@ export function TeilnehmerAnmeldungDialog({ open, onClose, onSubmit, defaultValu
         <Label htmlFor="participant_lastname">Nachname <span className="text-destructive" aria-hidden="true">*</span></Label>
         <Input
           id="participant_lastname"
-          placeholder="z. B. Schmidt"
+          placeholder=""
           value={fields.participant_lastname ?? ''}
           onChange={e => setFields(f => ({ ...f, participant_lastname: e.target.value }))}
           required
@@ -385,7 +415,7 @@ export function TeilnehmerAnmeldungDialog({ open, onClose, onSubmit, defaultValu
         <Input
           id="participant_email"
           type="email"
-          placeholder="anna.schmidt@example.com"
+          placeholder=""
           value={fields.participant_email ?? ''}
           onChange={e => setFields(f => ({ ...f, participant_email: e.target.value }))}
         />
@@ -409,7 +439,7 @@ export function TeilnehmerAnmeldungDialog({ open, onClose, onSubmit, defaultValu
         <Label htmlFor="date_of_birth">Geburtsdatum <span className="text-destructive" aria-hidden="true">*</span></Label>
         <DatePicker
           id="date_of_birth"
-          placeholder="Wann bist du geboren?"
+          placeholder=""
           mode="date"
           value={fields.date_of_birth ?? null}
           onChange={v => setFields(f => ({ ...f, date_of_birth: v ?? undefined }))}
@@ -424,6 +454,19 @@ export function TeilnehmerAnmeldungDialog({ open, onClose, onSubmit, defaultValu
       <div key="participant_skill_level" className="space-y-1.5">
         <Label htmlFor="participant_skill_level">Eigener Schwierigkeitsgrad <span className="text-destructive" aria-hidden="true">*</span></Label>
         <div role="radiogroup" className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={lookupKey(fields.participant_skill_level) === 'beginner'}
+            onClick={() => setFields(f => ({ ...f, participant_skill_level: (lookupKey(f.participant_skill_level) === 'beginner' ? undefined : 'beginner') as any }))}
+            className={`inline-flex items-center justify-center min-h-9 max-sm:min-h-11 max-sm:px-4 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+              lookupKey(fields.participant_skill_level) === 'beginner'
+                ? 'bg-foreground text-background border-foreground'
+                : 'bg-background text-foreground border-input hover:bg-accent'
+            }`}
+          >
+            Anfänger
+          </button>
           <button
             type="button"
             role="radio"
@@ -450,19 +493,6 @@ export function TeilnehmerAnmeldungDialog({ open, onClose, onSubmit, defaultValu
           >
             Profi
           </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={lookupKey(fields.participant_skill_level) === 'beginner'}
-            onClick={() => setFields(f => ({ ...f, participant_skill_level: (lookupKey(f.participant_skill_level) === 'beginner' ? undefined : 'beginner') as any }))}
-            className={`inline-flex items-center justify-center min-h-9 max-sm:min-h-11 max-sm:px-4 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
-              lookupKey(fields.participant_skill_level) === 'beginner'
-                ? 'bg-foreground text-background border-foreground'
-                : 'bg-background text-foreground border-input hover:bg-accent'
-            }`}
-          >
-            Anfänger
-          </button>
         </div>
         {showErrors && !fields.participant_skill_level && (
           <p className="text-xs text-destructive mt-1">Pflichtfeld</p>
@@ -474,7 +504,7 @@ export function TeilnehmerAnmeldungDialog({ open, onClose, onSubmit, defaultValu
         <Label htmlFor="emergency_contact_name">Name des Notfallkontakts <span className="text-destructive" aria-hidden="true">*</span></Label>
         <Input
           id="emergency_contact_name"
-          placeholder="z. B. Eltern oder Freund"
+          placeholder=""
           value={fields.emergency_contact_name ?? ''}
           onChange={e => setFields(f => ({ ...f, emergency_contact_name: e.target.value }))}
           required
@@ -504,7 +534,7 @@ export function TeilnehmerAnmeldungDialog({ open, onClose, onSubmit, defaultValu
           value={lookupKey(fields.tshirt_size) ?? ''}
           onValueChange={v => setFields(f => ({ ...f, tshirt_size: v === 'none' ? undefined : v as any }))}
         >
-          <SelectTrigger id="tshirt_size" className="max-sm:h-11"><SelectValue placeholder="Wähle eine Größe" /></SelectTrigger>
+          <SelectTrigger id="tshirt_size" className="max-sm:h-11"><SelectValue placeholder="" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="none">—</SelectItem>
             <SelectItem value="xs">XS</SelectItem>
@@ -547,13 +577,13 @@ export function TeilnehmerAnmeldungDialog({ open, onClose, onSubmit, defaultValu
   //     kein passendes Backend-Feld in orderedFields) erscheinen NICHT als
   //     Input, sondern unten als kompakte 'Berechnungen'-Übersicht oder als
   //     Inline-Hint unter dem letzten beitragenden Input.
-  const FIELD_LABELS: Record<string, string> = {"event": "Event", "participant_firstname": "Vorname", "participant_lastname": "Nachname", "participant_email": "E-Mail-Adresse", "participant_phone": "Telefonnummer", "date_of_birth": "Geburtsdatum", "participant_skill_level": "Eigener Schwierigkeitsgrad", "emergency_contact_name": "Name des Notfallkontakts", "emergency_contact_phone": "Telefonnummer des Notfallkontakts", "tshirt_size": "T-Shirt-Größe", "waiver_accepted": "Ich akzeptiere die Teilnahmebedingungen"};
+  const FIELD_LABELS: Record<string, string> = {"emergency_contact_email": "E-Mail-Adresse des Notfallkontakts", "event": "Event", "participant_firstname": "Vorname", "participant_lastname": "Nachname", "participant_email": "E-Mail-Adresse", "participant_phone": "Telefonnummer", "date_of_birth": "Geburtsdatum", "participant_skill_level": "Eigener Schwierigkeitsgrad", "emergency_contact_name": "Name des Notfallkontakts", "emergency_contact_phone": "Telefonnummer des Notfallkontakts", "tshirt_size": "T-Shirt-Größe", "waiver_accepted": "Ich akzeptiere die Teilnahmebedingungen"};
   const CURRENCY_KEYS = new Set<string>([]);
   // Applookup-Referenz-Labels: pro applookup-Feld in dieser Form (ownKey)
   // eine Map { lookupKey: label } für ALLE Felder des Target-Schemas. Wird
   // beim Render-Walk gefiltert auf die in der computed-Formel tatsächlich
   // referenzierten lookupKeys (siehe applookupRefs unten).
-  const APPLOOKUP_LABELS: Record<string, Record<string, string>> = {"event": {"event_title": "Titel des Events", "event_description": "Beschreibung", "event_category": "Kategorie", "event_datetime": "Datum und Uhrzeit", "skill_level": "Schwierigkeitsgrad", "max_participants": "Maximale Teilnehmerzahl", "entry_fee": "Startgebühr (in €)", "location": "Veranstaltungsort", "organizer_firstname": "Vorname des Organisators", "organizer_lastname": "Nachname des Organisators", "organizer_email": "E-Mail des Organisators", "organizer_phone": "Telefonnummer des Organisators", "event_flyer": "Event-Flyer"}};
+  const APPLOOKUP_LABELS: Record<string, Record<string, string>> = {"event": {"event_title": "Titel des Events", "event_description": "Beschreibung", "event_category": "Kategorie", "event_datetime": "Datum und Uhrzeit", "skill_level": "Schwierigkeitsgrad", "max_participants": "Maximale Teilnehmerzahl", "entry_fee": "Startgebühr (in €)", "location": "Veranstaltungsort", "organizer_firstname": "Vorname des Organisators", "organizer_lastname": "Nachname des Organisators", "organizer_email": "E-Mail des Organisators", "organizer_phone": "Telefonnummer des Organisators", "event_flyer": "Event-Flyer", "organizer_notes": "Notizen"}};
   const inputFields = useMemo(() => flattenFieldOrder(orderedFields), [orderedFieldsKey]);
   const backendFieldSet = useMemo(() => new Set(inputFields), [inputFields.join(',')]);
   const virtualComputed = useMemo(

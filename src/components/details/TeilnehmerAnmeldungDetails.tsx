@@ -23,6 +23,7 @@ export function TeilnehmerAnmeldungDetails({
   return (
     <>
       <RecordSection title="Details" cols={2}>
+        <RecordField label="E-Mail-Adresse des Notfallkontakts" value={record.fields.emergency_contact_email} format="email" />
         <RecordField label="Vorname" value={record.fields.participant_firstname} format="text" />
         <RecordField label="Nachname" value={record.fields.participant_lastname} format="text" />
         <RecordField label="E-Mail-Adresse" value={record.fields.participant_email} format="email" />

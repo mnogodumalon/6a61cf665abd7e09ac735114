@@ -104,6 +104,10 @@ export function EventVerwaltungViewDialog({ open, onClose, record, onEdit, skate
               <MediaThumbnail src={record.fields.event_flyer} fit="contain" className="w-full rounded-lg border" />
             ) : <p className="text-sm text-muted-foreground">—</p>}
           </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Notizen</Label>
+            <p className="text-sm whitespace-pre-wrap">{record.fields.organizer_notes ?? '—'}</p>
+          </div>
           <div className="pt-2 border-t border-border">
             <AttachmentsSection appId={APP_IDS.EVENT_VERWALTUNG} recordId={record.record_id} readOnly />
           </div>

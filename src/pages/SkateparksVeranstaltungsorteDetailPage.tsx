@@ -46,7 +46,7 @@ export default function SkateparksVeranstaltungsorteDetailPage() {
     if (!record) return;
     await LivingAppsService.deleteSkateparksVeranstaltungsorteEntry(record.record_id);
     setDeleteOpen(false);
-    navigate('/skateparks-&-veranstaltungsorte');
+    navigate('/skateparks-veranstaltungsorte');
   }
 
   if (loading) {
@@ -58,7 +58,7 @@ export default function SkateparksVeranstaltungsorteDetailPage() {
       <RecordViewEmpty
         title="Eintrag nicht gefunden"
         action={
-          <Button variant="ghost" onClick={() => navigate('/skateparks-&-veranstaltungsorte')}>
+          <Button variant="ghost" onClick={() => navigate('/skateparks-veranstaltungsorte')}>
             <IconArrowLeft className="h-4 w-4 mr-1.5" />
             Zurück
           </Button>
@@ -69,7 +69,7 @@ export default function SkateparksVeranstaltungsorteDetailPage() {
 
   return (
     <RecordView
-      onBack={() => navigate('/skateparks-&-veranstaltungsorte')}
+      onBack={() => navigate('/skateparks-veranstaltungsorte')}
       onEdit={() => setEditing(true)}
       backLabel="Zurück"
       editLabel="Bearbeiten"

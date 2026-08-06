@@ -242,6 +242,8 @@ export default function EventAnmeldenPage() {
         : null;
       const newEvent: EventVerwaltung = {
         record_id: newId ?? '',
+        created_at: new Date().toISOString(),
+        updated_at: null,
         createdat: new Date().toISOString(),
         updatedat: null,
         fields: {
