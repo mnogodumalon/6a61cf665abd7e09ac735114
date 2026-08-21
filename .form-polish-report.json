@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "SkateparksVeranstaltungsorte": {
+      "placeholders_set": 7,
+      "defaults_keys": [],
+      "computed_keys": [],
+      "reason": "Reine Stammdaten – Adresskomponenten und Freitextbeschreibungen. Keine berechenbaren Felder, keine Number-Felder, keine Datumspaare, kein Geld."
+    },
+    "EventVerwaltung": {
+      "placeholders_set": 12,
+      "defaults_keys": ["event_datetime", "event_category", "skill_level"],
+      "computed_keys": [],
+      "reason": "Entry-Fee ist statischer Tarif (nicht berechenbar), max_participants ist Kapazität (kein Produkt). Keine Datumspaare (kein event_ende), kein Gesamtkosten-Feld. Defaults: Event ab sofort, Standardkategorie, Level für alle."
+    },
+    "TeilnehmerAnmeldung": {
+      "placeholders_set": 11,
+      "defaults_keys": ["date_of_birth", "participant_skill_level", "waiver_accepted"],
+      "computed_keys": [],
+      "reason": "Anmeldungsformular mit Personen- und Notfallkontaktdaten. Keine Number-Felder zum Rechnen. Entry-Fee wird über applookup('event', 'entry_fee') read-only bezogen. Defaults: Geburtsdatum heute (User korrigiert), Skill-Level Anfänger, Waiver unchecked."
+    }
+  }
+}

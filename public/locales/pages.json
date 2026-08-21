@@ -1,0 +1,32 @@
+{
+  "pages": {
+    "en": {
+      "Anmelden": "Register",
+      "Anmeldung erfassen": "Add Registration",
+      "Anmeldungen": "Registrations",
+      "Bevorstehende Events": "Upcoming Events",
+      "Diese Woche": "This Week",
+      "Erstelle dein erstes Skatepark-Event und verwalte Anmeldungen.": "Create your first skatepark event and manage registrations.",
+      "Erstes Event erstellen": "Create First Event",
+      "Event erstellen": "Create Event",
+      "Event verschoben auf {0}": "Event rescheduled to {0}",
+      "Events gesamt": "Total Events",
+      "Events nach Kategorie": "Events by Category",
+      "Events nach Level": "Events by Level",
+      "Kein Event": "No Event",
+      "Keine bevorstehenden Events — erstelle jetzt ein Event!": "No upcoming events — create an event now!",
+      "Keine vergangenen Events.": "No past events.",
+      "Letzte Anmeldungen": "Recent Registrations",
+      "Neues Event": "New Event",
+      "Noch keine Anmeldungen.": "No registrations yet.",
+      "Noch keine Events angelegt": "No events created yet",
+      "Noch keine Events geplant — leg jetzt los!": "No events planned yet — get started now!",
+      "Ohne Titel": "Untitled",
+      "Starte deine Skateboard-Event-Verwaltung!": "Start your Skateboard Event Management!",
+      "Unbekannt": "Unknown",
+      "Vergangene Events": "Past Events",
+      "{0} — bevorstehende Events": "{0} — upcoming events"
+    }
+  },
+  "v": 1
+}

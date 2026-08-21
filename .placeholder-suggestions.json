@@ -1,0 +1,39 @@
+{
+  "SkateparksVeranstaltungsorteDialog.tsx": {
+    "location_name": "z. B. Skatepark Mitte",
+    "street": "z. B. Hauptstraße",
+    "house_number": "z. B. 42",
+    "postal_code": "z. B. 10115",
+    "city": "z. B. Berlin",
+    "description": "Ausstattung, Fläche, Besonderheiten...",
+    "special_notes": "Öffnungszeiten, Parkplätze, spezielle Regeln..."
+  },
+  "EventVerwaltungDialog.tsx": {
+    "event_title": "z. B. Berlin Skateboard Jam",
+    "event_description": "Ablauf, Regeln, Highlights der Veranstaltung...",
+    "event_category": "Wähle Veranstaltungstyp",
+    "event_datetime": "Wann findet das Event statt?",
+    "skill_level": "Für welches Niveau?",
+    "max_participants": "z. B. 100",
+    "entry_fee": "z. B. 15",
+    "location": "Welcher Skatepark?",
+    "organizer_firstname": "z. B. Max",
+    "organizer_lastname": "z. B. Müller",
+    "organizer_email": "z. B. max@example.de",
+    "organizer_phone": "z. B. +49 30 12345678"
+  },
+  "TeilnehmerAnmeldungDialog.tsx": {
+    "event": "Zu welchem Event anmelden?",
+    "participant_firstname": "z. B. Anna",
+    "participant_lastname": "z. B. Schmidt",
+    "participant_email": "z. B. anna@example.de",
+    "participant_phone": "z. B. +49 30 87654321",
+    "date_of_birth": "Wann bist du geboren?",
+    "participant_skill_level": "Wähle dein Niveau",
+    "emergency_contact_name": "z. B. Eltern oder enger Freund",
+    "emergency_contact_phone": "z. B. +49 30 99999999",
+    "emergency_contact_email": "z. B. notfall@example.de",
+    "tshirt_size": "Welche Größe?",
+    "waiver_accepted": "Ich akzeptiere die Bedingungen"
+  }
+}
