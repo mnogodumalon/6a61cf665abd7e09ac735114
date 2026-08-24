@@ -1,0 +1,39 @@
+{
+  "SkateparksVeranstaltungsorteDialog.tsx": {
+    "location_name": "z. B. Skate-Park Döhren",
+    "street": "z. B. Langenberger Straße",
+    "house_number": "z. B. 42a",
+    "postal_code": "z. B. 30419",
+    "city": "z. B. Hannover",
+    "description": "Ausstattung, Flächen, besondere Features...",
+    "special_notes": "Öffnungszeiten, Parkplätze, Anforderungen..."
+  },
+  "EventVerwaltungDialog.tsx": {
+    "event_title": "z. B. Urban Skateboard Championship",
+    "event_description": "Wer, was, wie, wo...",
+    "event_category": "Wähle eine Kategorie",
+    "event_datetime": "Wann findet das Event statt?",
+    "skill_level": "Wer darf teilnehmen?",
+    "max_participants": "z. B. 50",
+    "entry_fee": "z. B. 15,00",
+    "location": "Welcher Ort?",
+    "organizer_firstname": "z. B. Max",
+    "organizer_lastname": "z. B. Müller",
+    "organizer_email": "z. B. max@example.de",
+    "organizer_phone": "z. B. 0511-123456"
+  },
+  "TeilnehmerAnmeldungDialog.tsx": {
+    "event": "Zu welchem Event meldest du dich an?",
+    "participant_firstname": "z. B. Anna",
+    "participant_lastname": "z. B. Schmidt",
+    "participant_email": "z. B. anna@example.de",
+    "participant_phone": "z. B. 0511-987654",
+    "date_of_birth": "Wann bist du geboren?",
+    "participant_skill_level": "Wie geübt bist du?",
+    "emergency_contact_name": "z. B. Peter Müller",
+    "emergency_contact_phone": "z. B. 0511-555555",
+    "emergency_contact_email": "z. B. peter@example.de",
+    "tshirt_size": "Welche Größe passt dir?",
+    "waiver_accepted": "Ich akzeptiere die Bedingungen"
+  }
+}

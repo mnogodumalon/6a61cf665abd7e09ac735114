@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "Skateparks & Veranstaltungsorte": {
+      "placeholders_set": 7,
+      "defaults_keys": [],
+      "computed_keys": [],
+      "reason": "Reine Stammdaten für Event-Locations — keine numerischen Abhängigkeiten, keine Berechnungen nötig"
+    },
+    "Event-Verwaltung": {
+      "placeholders_set": 12,
+      "defaults_keys": ["event_category", "event_datetime"],
+      "computed_keys": [],
+      "reason": "Event-Kontaktformular mit Datum (heute) und Start-Kategorie. Teilnehmer-Cap und Gebühr sind geschätzliche Parameter ohne Berechnungsabhängigkeit — kein Umsatz-Total nötig (echte Einnahmen ermitteln sich erst aus Anmeldungen)"
+    },
+    "Teilnehmer-Anmeldung": {
+      "placeholders_set": 11,
+      "defaults_keys": [],
+      "computed_keys": [],
+      "reason": "Persönliche Anmeldung mit Event-Referenz — keine berechenbaren Größen. Gebühr + Teilnehmerzahl sind Kontextwerte des Ziel-Events (nicht berechnet hier). Geburtsdatum ist pure Info, waiver muss bewusst akzeptiert werden"
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "pages": [
+    {
+      "slug": "event-verwaltung",
+      "type": "form",
+      "entity": "event_verwaltung",
+      "title": "Event-Verwaltung",
+      "published": false,
+      "fields": [
+        "event_title",
+        "event_description",
+        "event_category",
+        "event_datetime",
+        "skill_level",
+        "max_participants",
+        "entry_fee",
+        "organizer_firstname",
+        "organizer_lastname",
+        "organizer_email",
+        "organizer_phone",
+        "organizer_notes"
+      ]
+    },
+    {
+      "slug": "teilnehmer-anmeldung",
+      "type": "form",
+      "entity": "teilnehmer_anmeldung",
+      "title": "Teilnehmer-Anmeldung",
+      "published": true,
+      "fields": [
+        "emergency_contact_email",
+        "participant_firstname",
+        "participant_lastname",
+        "participant_email",
+        "participant_phone",
+        "date_of_birth",
+        "participant_skill_level",
+        "emergency_contact_name",
+        "emergency_contact_phone",
+        "tshirt_size",
+        "waiver_accepted"
+      ]
+    },
+    {
+      "slug": "skateparks-veranstaltungsorte",
+      "type": "form",
+      "entity": "skateparks_veranstaltungsorte",
+      "title": "Skateparks & Veranstaltungsorte",
+      "published": true,
+      "fields": [
+        "location_name",
+        "street",
+        "house_number",
+        "postal_code",
+        "city",
+        "description",
+        "special_notes"
+      ]
+    }
+  ]
+}
