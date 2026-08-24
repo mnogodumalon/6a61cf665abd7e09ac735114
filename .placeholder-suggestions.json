@@ -1,0 +1,39 @@
+{
+  "SkateparksVeranstaltungsorteDialog.tsx": {
+    "location_name":    "z. B. Kreuzberg Skatepark",
+    "street":           "z. B. Köpenicker Str.",
+    "house_number":     "z. B. 123 / 123a",
+    "postal_code":      "z. B. 10997",
+    "city":             "z. B. Berlin",
+    "description":      "Ausstattung, Hindernisse, Besonderheiten...",
+    "special_notes":    "Öffnungszeiten, Regeln, Besonderheiten..."
+  },
+  "TeilnehmerAnmeldungDialog.tsx": {
+    "event":                        "Welches Event wählen?",
+    "participant_firstname":        "z. B. Max",
+    "participant_lastname":         "z. B. Müller",
+    "participant_email":            "z. B. max@example.com",
+    "participant_phone":            "z. B. +49 30 12345678",
+    "date_of_birth":                "Wann bist du geboren?",
+    "participant_skill_level":      "Welcher Schwierigkeitsgrad?",
+    "emergency_contact_name":       "z. B. Anna Müller",
+    "emergency_contact_phone":      "z. B. +49 30 87654321",
+    "emergency_contact_email":      "z. B. anna@example.com",
+    "tshirt_size":                  "z. B. M, L, XL",
+    "waiver_accepted":              "Bedingungen akzeptieren"
+  },
+  "EventVerwaltungDialog.tsx": {
+    "event_title":             "z. B. Berlin Jam Session 2026",
+    "event_description":       "Veranstaltungsablauf, Highlights, Zusatzinfo...",
+    "event_category":          "Wähle eine Kategorie",
+    "event_datetime":          "Wann findet das Event statt?",
+    "skill_level":             "Welcher Schwierigkeitsgrad?",
+    "max_participants":        "z. B. 50",
+    "entry_fee":               "z. B. 15,00",
+    "location":                "Welcher Veranstaltungsort?",
+    "organizer_firstname":     "z. B. Max",
+    "organizer_lastname":      "z. B. Müller",
+    "organizer_email":         "z. B. max@example.com",
+    "organizer_phone":         "z. B. +49 30 12345678"
+  }
+}

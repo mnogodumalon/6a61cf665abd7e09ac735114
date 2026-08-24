@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "SkateparksVeranstaltungsorte": {
+      "placeholders_set": 7,
+      "defaults_keys": [],
+      "computed_keys": [],
+      "reason": "Reine Stammdaten ohne Berechnungslogik. Adressfelder und Beschreibungen; keine Number-Felder, keine Lookup-Ketten, kein Datumspaar zur Dauer-Berechnung."
+    },
+    "TeilnehmerAnmeldung": {
+      "placeholders_set": 11,
+      "defaults_keys": ["waiver_accepted"],
+      "computed_keys": [],
+      "reason": "Personen-Erfassungsformular für Event-Anmeldung. Applookup auf Event vorhanden, aber keine Multiplikation mit Mengen oder Preisen (keine Buchung, kein Posten). waiver_accepted erhält Default false (Checkbox unchecked bei Open)."
+    },
+    "EventVerwaltung": {
+      "placeholders_set": 12,
+      "defaults_keys": ["event_datetime"],
+      "computed_keys": [],
+      "reason": "Event-Stammdaten mit Zeitangabe und Kapazitäts-/Kosten-Eingaben. event_datetime erhält Default 'today' mit withTime:true (Event-Start-Semantik). max_participants und entry_fee sind reine Eingabefelder ohne Berechnungsbezug. Keine Berechnung nötig."
+    }
+  }
+}
