@@ -1,0 +1,32 @@
+{
+  "pages": {
+    "en": {
+      "Anmeldung": "Registration",
+      "Anmeldung erfassen": "Record Registration",
+      "Anstehende Events": "Upcoming Events",
+      "Ausgebucht": "Sold Out",
+      "Diese Woche": "This Week",
+      "Event anlegen": "Add Event",
+      "Event erstellen": "Create Event",
+      "Event unbekannt": "Event Unknown",
+      "Events gesamt": "Total Events",
+      "Heute: {0} — {1} {2} finden statt.": "Today: {0} — {1} {2} taking place.",
+      "Kein Ort": "No Venue",
+      "Keine anstehenden Events — erstelle dein erstes Event.": "No upcoming events — create your first event.",
+      "Neue Anmeldungen": "New Registrations",
+      "Noch keine Anmeldungen in den letzten 7 Tagen.": "No registrations in the last 7 days yet.",
+      "Noch keine Events geplant — lege dein erstes Event an.": "No events scheduled yet — create your first event.",
+      "Nächstes Event: {0} am {1}.": "Next Event: {0} on {1}.",
+      "Ort zuweisen": "Assign Venue",
+      "Teilnehmer": "Attendees",
+      "Unbekannt": "Unknown",
+      "Unbekanntes Event": "Unknown Event",
+      "Unbenannt": "Unnamed",
+      "Veranstaltungsorte": "Venues",
+      "hat noch keinen Veranstaltungsort.": "has no venue assigned yet.",
+      "{0} — verschoben": "{0} — postponed",
+      "— {0} Events ohne Veranstaltungsort.": "— {0} Events without a venue."
+    }
+  },
+  "v": 1
+}

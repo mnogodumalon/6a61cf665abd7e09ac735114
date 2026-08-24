@@ -1,0 +1,39 @@
+{
+  "SkateparksVeranstaltungsorteDialog.tsx": {
+    "location_name": "z. B. Main Street Bowl",
+    "street": "z. B. Hauptstraße",
+    "house_number": "z. B. 42",
+    "postal_code": "z. B. 12345",
+    "city": "z. B. Berlin",
+    "description": "Ausstattung, Besonderheiten...",
+    "special_notes": "Parkmöglichkeiten, Öffnungszeiten..."
+  },
+  "EventVerwaltungDialog.tsx": {
+    "event_title": "z. B. Spring Jam 2026",
+    "event_description": "Ablauf, Regeln, Besonderheiten...",
+    "event_category": "Art des Events wählen",
+    "event_datetime": "Wann findet das Event statt?",
+    "skill_level": "Zielgruppe wählen",
+    "max_participants": "z. B. 50",
+    "entry_fee": "z. B. 15,00",
+    "location": "Welcher Skateplatz?",
+    "organizer_firstname": "z. B. Max",
+    "organizer_lastname": "z. B. Mustermann",
+    "organizer_email": "max@example.com",
+    "organizer_phone": "z. B. +49 123 456789"
+  },
+  "TeilnehmerAnmeldungDialog.tsx": {
+    "event": "Zu welchem Event anmelden?",
+    "participant_firstname": "z. B. Anna",
+    "participant_lastname": "z. B. Schmidt",
+    "participant_email": "anna@example.com",
+    "participant_phone": "z. B. +49 123 456789",
+    "date_of_birth": "Wann bist du geboren?",
+    "participant_skill_level": "Dein Level wählen",
+    "emergency_contact_name": "z. B. Peter Müller",
+    "emergency_contact_phone": "z. B. +49 987 654321",
+    "emergency_contact_email": "peter@example.com",
+    "tshirt_size": "Deine Größe wählen",
+    "waiver_accepted": "Bedingungen akzeptiert?"
+  }
+}

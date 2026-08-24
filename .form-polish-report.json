@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "Skateparks & Veranstaltungsorte": {
+      "placeholders_set": 7,
+      "defaults_keys": [],
+      "computed_keys": [],
+      "reason": "Reine Stammdaten-Entity für Locations (Adresse, Beschreibung) — keine numerischen, zeitlichen oder abhängigen Felder, daher nichts berechenbar"
+    },
+    "Event-Verwaltung": {
+      "placeholders_set": 12,
+      "defaults_keys": ["event_category", "skill_level", "event_datetime"],
+      "computed_keys": [],
+      "reason": "Event-Metadaten (Titel, Beschreibung, statische Lookups, Veranstaltungsort, Organisator) — keine Preisrechnung oder Datums-Differenzen erforderlich; entry_fee ist ein Eingabewert, nicht berechenbar"
+    },
+    "Teilnehmer-Anmeldung": {
+      "placeholders_set": 11,
+      "defaults_keys": ["participant_skill_level", "waiver_accepted"],
+      "computed_keys": [],
+      "reason": "Anmeldungsformular mit Teilnehmer- und Notfallkontakt-Daten — keine Preis-, Mengen- oder Datums-Berechnungen; event-Applookup ist reine Referenz ohne numerische Verarbeitung"
+    }
+  }
+}
