@@ -17,6 +17,8 @@ import TeilnehmerAnmeldungDetailPage from '@/pages/TeilnehmerAnmeldungDetailPage
 import EventVerwaltungPage from '@/pages/EventVerwaltungPage';
 import EventVerwaltungDetailPage from '@/pages/EventVerwaltungDetailPage';
 // <custom:imports>
+const IntentNeuesEventPage = lazy(() => import('@/pages/intents/NeuesEventPage'));
+const IntentTeilnehmerAnmeldenPage = lazy(() => import('@/pages/intents/TeilnehmerAnmeldenPage'));
 // </custom:imports>
 
 // Lazy: public pages live outside <Layout> and only load on /#/public/:slug —
@@ -65,6 +67,8 @@ export default function App() {
                 <Route path="admin" element={<AdminPage />} />
                 <Route path="verwaltung/oeffentliche-seiten" element={<PublicPagesAdmin />} />
                 {/* <custom:routes> */}
+                <Route path="intents/neues-event" element={<Suspense fallback={null}><IntentNeuesEventPage /></Suspense>} />
+                <Route path="intents/teilnehmer-anmelden" element={<Suspense fallback={null}><IntentTeilnehmerAnmeldenPage /></Suspense>} />
                 {/* </custom:routes> */}
               </Route>
             </Routes>
