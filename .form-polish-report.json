@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "Skateparks & Veranstaltungsorte": {
+      "placeholders_set": 7,
+      "defaults_keys": [],
+      "computed_keys": [],
+      "reason": "Reine Stammdaten-Entity (Adressinformationen, Beschreibungen). Keine Number-Felder, keine applookup-Ketten, keine berechenbaren Werte. Feldordnung optimiert: Adressblock gruppiert."
+    },
+    "Teilnehmer-Anmeldung": {
+      "placeholders_set": 12,
+      "defaults_keys": ["waiver_accepted"],
+      "computed_keys": [],
+      "reason": "Registrierungs-Entity mit applookup auf Event. Keine Geldbeträge zu berechnen (applookup-Targets sind nur Kontext-Informationen, nicht Quellen für Preisformeln). Einziger Default: waiver_accepted=true für bessere UX. Feldordnung optimiert: Event zuerst, Teilnehmerdaten gruppiert, Notfall-Kontakt am Schluss."
+    },
+    "Event-Verwaltung": {
+      "placeholders_set": 12,
+      "defaults_keys": ["event_datetime", "skill_level", "event_category"],
+      "computed_keys": [],
+      "reason": "Event-Stamm-Entity mit zwei unabhängigen Number-Feldern (Teilnehmerzahl, Gebühr) und applookup auf Skateparks. Keine Beziehung zwischen max_participants und entry_fee (kein 'Teilnehmer × Gebühr = Umsatz' berechnet; das Backend entweder kennt die Formel oder nicht). Defaults: event_datetime=heute+Zeit, skill_level=alle_levels, event_category=sonstiges. Feldordnung optimiert: Event-Info zuerst, dann Admins, dann Organisator-Kontakt."
+    }
+  }
+}

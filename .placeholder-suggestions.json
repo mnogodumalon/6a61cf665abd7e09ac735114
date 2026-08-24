@@ -1,0 +1,39 @@
+{
+  "SkateparksVeranstaltungsorteDialog.tsx": {
+    "location_name": "z. B. Skatehalle Berlin",
+    "street": "z. B. Hauptstraße",
+    "house_number": "z. B. 42",
+    "postal_code": "z. B. 10115",
+    "city": "z. B. Berlin",
+    "description": "Ausstattung, Rampen, Hindernisse...",
+    "special_notes": "Öffnungszeiten, Besonderheiten, Zugänglichkeit..."
+  },
+  "TeilnehmerAnmeldungDialog.tsx": {
+    "participant_firstname": "z. B. Max",
+    "participant_lastname": "z. B. Müller",
+    "participant_email": "z. B. max@example.com",
+    "participant_phone": "z. B. 030-123456789",
+    "date_of_birth": "Wann wurdest du geboren?",
+    "participant_skill_level": "Dein Schwierigkeitsgrad?",
+    "event": "Welches Event?",
+    "emergency_contact_name": "z. B. Anna Müller",
+    "emergency_contact_phone": "z. B. 030-987654321",
+    "emergency_contact_email": "z. B. anna@example.com",
+    "tshirt_size": "Welche Größe?",
+    "waiver_accepted": "Bedingungen akzeptieren"
+  },
+  "EventVerwaltungDialog.tsx": {
+    "event_title": "z. B. Skatehalle Cup 2026",
+    "event_description": "Inhalt, Highlights, Besonderheiten...",
+    "event_category": "Wähle eine Kategorie",
+    "event_datetime": "Wann findet das Event statt?",
+    "skill_level": "Für welches Level?",
+    "max_participants": "z. B. 50",
+    "entry_fee": "z. B. 15,50",
+    "location": "Welcher Veranstaltungsort?",
+    "organizer_firstname": "z. B. Peter",
+    "organizer_lastname": "z. B. Schmidt",
+    "organizer_email": "z. B. peter@example.com",
+    "organizer_phone": "z. B. 030-456789123"
+  }
+}
