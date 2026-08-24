@@ -20,6 +20,7 @@
 import type { ComponentType } from 'react';
 
 // <custom:intent-imports>
+import { IconCalendarPlus, IconUserPlus } from '@tabler/icons-react';
 // </custom:intent-imports>
 
 export interface IntentLink {
@@ -42,6 +43,8 @@ export interface IntentLink {
 
 export const INTENTS: IntentLink[] = [
   // <custom:intents>
+  { path: '/intents/neues-event', label: { de: 'Neues Event', en: 'New event' }, icon: IconCalendarPlus, description: 'Event in 3 Schritten mit Veranstaltungsort und Details anlegen' },
+  { path: '/intents/teilnehmer-anmelden', label: { de: 'Teilnehmer anmelden', en: 'Register participant' }, icon: IconUserPlus, description: 'Teilnehmer fuer ein bestehendes Event in 3 Schritten anmelden' },
   // </custom:intents>
 ];
 
@@ -52,4 +55,4 @@ export const INTENTS: IntentLink[] = [
  * purpose — a scaffold update resets it to false (self-healing if Phase 2
  * never ran).
  */
-export const INTENTS_PENDING = true;
+export const INTENTS_PENDING = false;
