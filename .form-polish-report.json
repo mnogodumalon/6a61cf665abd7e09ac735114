@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "SkateparksVeranstaltungsorte": {
+      "placeholders_set": 7,
+      "defaults_keys": [],
+      "computed_keys": [],
+      "reason": "Reine Stammdatenverwaltung mit Text- und Textareas — keine numerischen Felder, keine Datenpaare, keine applookup-Ketten. Keine Berechnung möglich."
+    },
+    "EventVerwaltung": {
+      "placeholders_set": 12,
+      "defaults_keys": ["event_category", "event_datetime", "skill_level"],
+      "computed_keys": [],
+      "reason": "Numerische Felder (max_participants, entry_fee) sind reine Eingaben ohne Multiplikator-Kontext. Applookup auf Skateparks hat keine numerischen Zielfelder. Keine Berechnung sinnvoll."
+    },
+    "TeilnehmerAnmeldung": {
+      "placeholders_set": 11,
+      "defaults_keys": ["participant_skill_level", "waiver_accepted"],
+      "computed_keys": [],
+      "reason": "Anmeldeformular mit Persondaten, Geburtsdatum und bool-Feld. Applookup auf Event hat numerische Felder (entry_fee, max_participants), aber keine Multiplikator-Kontext (Anmeldung speichert keine Mengen). Keine Berechnung."
+    }
+  }
+}

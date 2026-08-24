@@ -1,0 +1,29 @@
+{
+  "pages": {
+    "en": {
+      "Anmelden": "Register",
+      "Diese Woche": "This Week",
+      "Erstes Event anlegen": "Create First Event",
+      "Event erstellen": "Create Event",
+      "Events nach Kategorie": "Events by Category",
+      "Heute: {0}{1}": "Today: {0}{1}",
+      "Kein Ort": "No Venue",
+      "Kommende Events": "Upcoming Events",
+      "Noch keine Anmeldungen": "No registrations yet",
+      "Noch keine Events geplant": "No Events Scheduled",
+      "Noch keine Events geplant — leg das erste an!": "No events scheduled yet — create the first one!",
+      "Nächste Events": "Next Events",
+      "Nächstes Event: {0} am {1}": "Next Event: {0} on {1}",
+      "Ort zuweisen": "Assign Venue",
+      "Teilnehmer": "Participants",
+      "Teilnehmer gesamt": "Total Participants",
+      "Unbenanntes Event": "Unnamed Event",
+      "Veranstaltungsorte": "Venues",
+      "bitte vor dem Event eintragen.": "please enter before the event.",
+      "ohne Veranstaltungsort": "without venue",
+      "{0} Teilnehmer": "{0} Participants",
+      "{0} — Datum geändert": "{0} — Date changed"
+    }
+  },
+  "v": 1
+}
