@@ -1,0 +1,39 @@
+{
+  "SkateparksVeranstaltungsorteDialog.tsx": {
+    "location_name": "z. B. Skate-Park Downtown",
+    "street": "z. B. Müller Straße",
+    "house_number": "z. B. 42",
+    "postal_code": "z. B. 10115",
+    "city": "z. B. Berlin",
+    "description": "Ausstattung, Hindernisse, Besonderheiten...",
+    "special_notes": "Informationen zur Nutzung, Öffnungszeiten, Besonderheiten..."
+  },
+  "EventVerwaltungDialog.tsx": {
+    "event_title": "z. B. Streetskate Battle 2024",
+    "event_description": "Veranstaltungsablauf, Regeln, Highlights...",
+    "event_category": "Wähle Event-Kategorie",
+    "event_datetime": "z. B. 2024-09-15 oder 14:30",
+    "skill_level": "Wähle Schwierigkeitsgrad",
+    "max_participants": "z. B. 50",
+    "entry_fee": "z. B. 15,00",
+    "location": "Welcher Ort?",
+    "organizer_firstname": "z. B. Max",
+    "organizer_lastname": "z. B. Müller",
+    "organizer_email": "z. B. max@example.com",
+    "organizer_phone": "z. B. 030 123456"
+  },
+  "TeilnehmerAnmeldungDialog.tsx": {
+    "participant_firstname": "z. B. Max",
+    "participant_lastname": "z. B. Müller",
+    "participant_email": "z. B. max@example.com",
+    "participant_phone": "z. B. 030 123456",
+    "date_of_birth": "Wann geboren?",
+    "participant_skill_level": "Wähle dein Niveau",
+    "emergency_contact_name": "z. B. Anna Müller",
+    "emergency_contact_phone": "z. B. 030 654321",
+    "emergency_contact_email": "z. B. anna@example.com",
+    "tshirt_size": "Wähle deine Größe",
+    "event": "Zu welchem Event anmelden?",
+    "waiver_accepted": "Bedingungen akzeptiert?"
+  }
+}

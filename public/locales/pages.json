@@ -1,0 +1,27 @@
+{
+  "pages": {
+    "en": {
+      "Anmeldung erfassen": "Add Registration",
+      "Anmeldungen": "Registrations",
+      "Erstelle dein erstes Skateboard-Event.": "Create your first skateboard event.",
+      "Erstes Event anlegen": "Create First Event",
+      "Event anlegen": "Create Event",
+      "Events gesamt": "Total Events",
+      "Leg dein erstes Event an und starte durch.": "Create your first event and get started.",
+      "Neu (7 Tage)": "New (7 Days)",
+      "Neue Anmeldungen": "New Registrations",
+      "Neues Event": "New Event",
+      "Noch keine Anmeldungen eingegangen.": "No registrations received yet.",
+      "Noch keine Events": "No Events Yet",
+      "Noch keine Events mit Anmeldungen.": "No events with registrations yet.",
+      "Ohne Titel": "Untitled",
+      "Top Events nach Anmeldungen": "Top Events by Registrations",
+      "Unbekannt": "Unknown",
+      "Veranstaltungsorte": "Venues",
+      "{0} Events aktiv, {1} Anmeldungen insgesamt.": "{0} events active, {1} registrations total.",
+      "{0} — Contests in der Pipeline.": "{0} — Contests in the pipeline.",
+      "{0} — Kategorie geändert": "{0} — Category changed"
+    }
+  },
+  "v": 1
+}

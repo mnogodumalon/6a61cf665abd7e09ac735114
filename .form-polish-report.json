@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "Skateparks & Veranstaltungsorte": {
+      "placeholders_set": 7,
+      "defaults_keys": [],
+      "computed_keys": [],
+      "reason": "Reine Stammdaten (Adressen, Beschreibungen). Keine Preise, keine Mengen, keine Berechnungen möglich. fieldOrder: Adress-Spalten optimiert (street+house_number, postal_code+city)."
+    },
+    "Event-Verwaltung": {
+      "placeholders_set": 12,
+      "defaults_keys": [],
+      "computed_keys": [],
+      "reason": "Event-Verwaltung mit Kapazität und Startgebühr als einfache Eingabegrößen — keine Berechnung (kein Ticketverkauf, keine Kostenaggregate, keine Abhängigkeiten zwischen Feldern). fieldOrder: Kategorie vor Datum, Organizer-Namen gepaart."
+    },
+    "Teilnehmer-Anmeldung": {
+      "placeholders_set": 11,
+      "defaults_keys": ["waiver_accepted"],
+      "computed_keys": [],
+      "reason": "Anmeldungs-Formular mit Personen-Daten und Notfallkontakt. Applookup auf Event ist Referenz-Feld, kein numerischer Abhängiger. date_of_birth existiert ohne Zielfeld 'alter' (kein dateDiff-Computed). Waiver default: false (Bedingungen müssen aktiv akzeptiert werden). fieldOrder: Event erste, Vorname+Nachname + Notfall-Daten gepaart."
+    }
+  }
+}
