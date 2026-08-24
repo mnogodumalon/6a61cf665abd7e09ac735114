@@ -1,0 +1,40 @@
+{
+  "SkateparksVeranstaltungsorteDialog.tsx": {
+    "location_name": "z. B. Downtown Skatepark",
+    "street": "z. B. Hauptstraße",
+    "house_number": "z. B. 42",
+    "postal_code": "z. B. 10115",
+    "city": "z. B. Berlin",
+    "description": "Ausstattung, Terrain-Art, Besonderheiten des Parks...",
+    "special_notes": "Parkplätze, Öffnungszeiten, Zutritt, Regeln..."
+  },
+  "TeilnehmerAnmeldungDialog.tsx": {
+    "participant_firstname": "z. B. Max",
+    "participant_lastname": "z. B. Müller",
+    "participant_email": "z. B. max@beispiel.de",
+    "participant_phone": "z. B. 0176 12345678",
+    "date_of_birth": "Wann bist du geboren?",
+    "participant_skill_level": "Wie ist dein Level?",
+    "emergency_contact_name": "z. B. Anna Schmidt",
+    "emergency_contact_phone": "z. B. 0176 87654321",
+    "emergency_contact_email": "z. B. anna@beispiel.de",
+    "event": "Welches Event?",
+    "tshirt_size": "z. B. M, L oder XL",
+    "waiver_accepted": "Bedingungen gelesen?"
+  },
+  "EventVerwaltungDialog.tsx": {
+    "event_title": "z. B. Berlin Skate Cup 2026",
+    "event_description": "Ablauf, Format, Attraktionen, Besonderheiten...",
+    "event_datetime": "Wann findet das Event statt?",
+    "event_category": "Was für ein Event?",
+    "skill_level": "Für welches Level?",
+    "max_participants": "z. B. 50",
+    "entry_fee": "z. B. 15,00",
+    "location": "Wo ist der Veranstaltungsort?",
+    "organizer_firstname": "z. B. Tom",
+    "organizer_lastname": "z. B. Fischer",
+    "organizer_email": "z. B. tom@beispiel.de",
+    "organizer_phone": "z. B. 0176 11111111",
+    "organizer_notes": "Organisatorische Notizen, To-Dos, Bemerkungen..."
+  }
+}

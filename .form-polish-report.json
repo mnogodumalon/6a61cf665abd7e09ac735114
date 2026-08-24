@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "SkateparksVeranstaltungsorte": {
+      "placeholders_set": 7,
+      "defaults_keys": [],
+      "computed_keys": [],
+      "reason": "Reine Stammdaten (Ortsadresse + Beschreibung). Keine numerischen Felder, keine Applookup-Preise, keine Datumspaare — nichts berechenbar."
+    },
+    "TeilnehmerAnmeldung": {
+      "placeholders_set": 12,
+      "defaults_keys": ["waiver_accepted"],
+      "computed_keys": [],
+      "reason": "Anmeldungsformular mit Applookup auf Event (nur zur Referenz, keine Preisberechnung für den Teilnehmer nötig). Ein bool-Feld für Waiverbestätigung wird auf true vorbelegt. Keine weiteren Berechnungen."
+    },
+    "EventVerwaltung": {
+      "placeholders_set": 12,
+      "defaults_keys": ["event_datetime", "event_category", "skill_level"],
+      "computed_keys": [],
+      "reason": "Event-Verwaltung mit Metadaten (Titel, Beschreibung, Datum, Organizer-Daten). max_participants und entry_fee sind reine Eingabewerte ohne Beziehung zu anderen Feldern — kein Produkt, keine Summe, keine berechenbare Abhängigkeit."
+    }
+  }
+}

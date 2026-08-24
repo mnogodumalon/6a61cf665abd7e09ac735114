@@ -1,0 +1,34 @@
+{
+  "pages": {
+    "en": {
+      "Anmeldung": "Registration",
+      "Anmeldung erfassen": "Record Registration",
+      "Ausstehend": "Pending",
+      "Bestätigt": "Confirmed",
+      "Bevorstehend": "Upcoming",
+      "Dein erstes Event anlegen": "Create Your First Event",
+      "Erstelle ein Event und lade Teilnehmer ein.": "Create an event and invite participants.",
+      "Erstes Event erstellen": "Create First Event",
+      "Event anlegen": "Create Event",
+      "Events gesamt": "Total Events",
+      "Heute": "Today",
+      "Keine bevorstehenden Events – erstelle jetzt eines!": "No upcoming events – create one now!",
+      "Kommende Events": "Upcoming Events",
+      "Neue Anmeldungen": "New Registrations",
+      "Neues Event": "New Event",
+      "Noch keine Anmeldungen für bevorstehende Events.": "No registrations for upcoming events yet.",
+      "Noch keine Events geplant – leg jetzt los!": "No events planned yet – get started now!",
+      "Nächstes Event: {0} am {1}.": "Next Event: {0} on {1}.",
+      "Ohne Titel": "Untitled",
+      "Teilnehmer": "Participants",
+      "Teilnehmer anzeigen": "View Participants",
+      "Unbekannt": "Unknown",
+      "finden heute statt": "take place today",
+      "findet heute statt": "takes place today",
+      "haben die Teilnahmebedingungen noch nicht akzeptiert.": "have not yet accepted the terms of participation.",
+      "hat die Teilnahmebedingungen noch nicht akzeptiert.": "has not yet accepted the terms of participation.",
+      "{0} — verschoben": "{0} — postponed"
+    }
+  },
+  "v": 1
+}
